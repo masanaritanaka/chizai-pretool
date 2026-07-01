@@ -1,5 +1,13 @@
 import { clusters, clusterColor, photoPath, presetsByCluster, type Preset } from './presets';
 
+const LAW_DOMAIN_COLORS: Record<string, string> = {
+  特許: '#2563EB',
+  商標: '#7C3AED',
+  意匠: '#DB2777',
+  実用新案: '#059669',
+  契約: '#D97706',
+};
+
 interface HomeProps {
   onSelectPreset: (preset: Preset) => void;
 }
@@ -48,7 +56,17 @@ export function Home({ onSelectPreset }: HomeProps) {
 
                 <div className="preset-card__body">
                   <span className="preset-card__label">{preset.label}</span>
-                  <span className="preset-card__domains">{preset.lawDomains.join(' / ')}</span>
+                  <div className="preset-card__domains">
+                    {preset.lawDomains.map((d) => (
+                      <span
+                        key={d}
+                        className="law-domain-tag"
+                        style={{ '--dot-color': LAW_DOMAIN_COLORS[d] ?? '#888' } as React.CSSProperties}
+                      >
+                        {d}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </button>
             ))}

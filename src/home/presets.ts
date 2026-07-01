@@ -145,9 +145,9 @@ export const presets: Preset[] = [
 export const clusters: Cluster[] = ['調べる', '監視する', '管理する'];
 
 export const clusterColor: Record<Cluster, string> = {
-  '調べる': '#3730a3',   // indigo-800
-  '監視する': '#92400e', // amber-800
-  '管理する': '#1f2937', // graphite (gray-800)
+  '調べる':  '#4F46E5', // indigo
+  '監視する': '#C2740C', // amber
+  '管理する': '#475569', // slate
 };
 
 export function presetsByCluster(cluster: Cluster): Preset[] {

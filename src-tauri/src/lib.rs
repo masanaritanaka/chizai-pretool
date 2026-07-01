@@ -13,6 +13,8 @@ pub fn run() {
       }
       Ok(())
     })
+    .plugin(tauri_plugin_http::init())
+    .plugin(tauri_plugin_shell::init())
     .invoke_handler(tauri::generate_handler![
       keychain::save_api_key,
       keychain::get_api_key,
