@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from './components/BackButton';
 import { DisclaimerBanner } from './components/DisclaimerBanner';
 import { ResearchPage } from './engines/research/ResearchPage';
 import { DeadlineManager } from './engines/manage/DeadlineManager';
@@ -6,6 +7,7 @@ import { DefensiveDisclosures } from './engines/manage/DefensiveDisclosures';
 import { getSettingValue, listNearDeadlines, setSettingValue } from './engines/manage/db';
 import { Home } from './home/Home';
 import type { Preset } from './home/presets';
+import { clusterColor } from './home/presets';
 import { Settings } from './settings/Settings';
 import './App.css';
 
@@ -108,13 +110,20 @@ function App() {
       return <DefensiveDisclosures onBack={handleBack} />;
     }
 
-    // Placeholder for unimplemented presets
+    // Placeholder for unimplemented presets (Watch engine etc.)
+    const pColor = clusterColor[preset.cluster];
     return (
       <div className="preset-placeholder">
-        <button type="button" className="preset-placeholder__back" onClick={handleBack}>← ホーム</button>
-        <h2>{preset.label}</h2>
-        <p>法域: {preset.lawDomains.join(' / ')} &nbsp;/&nbsp; エンジン: {preset.engine}</p>
-        <p className="preset-placeholder__phase">Phase {preset.phase} で実装予定です。</p>
+        <div className="page-header">
+          <BackButton onClick={handleBack} clusterColor={pColor} />
+          <div className="page-header__meta">
+            <span className="research-page__cluster-badge" style={{ background: pColor, color: '#fff' }}>
+              {preset.cluster}
+            </span>
+            <h2 className="research-page__title" style={{ fontSize: '1.3rem' }}>{preset.label}</h2>
+            <p className="preset-placeholder__phase">Phase {preset.phase} で実装予定です。</p>
+          </div>
+        </div>
       </div>
     );
   }

@@ -770,3 +770,43 @@
 }
 .file-upload-btn:hover { border-color: #9CA3AF; color: var(--text); }
 .file-upload-btn--loading { opacity: 0.6; pointer-events: none; cursor: wait; }
+
+/* ════════════════════════════════════════════
+   共通: 戻るボタン + ページヘッダー
+   ════════════════════════════════════════════ */
+
+/* 枠線付き戻るボタン — クラスタ色でホバー */
+.back-button {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 0.42rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--card);
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  line-height: 1.4;
+}
+.back-button:hover {
+  border-color: var(--cluster-color, #4F46E5);
+  color: var(--cluster-color, #4F46E5);
+  background: color-mix(in srgb, var(--cluster-color, #4F46E5) 6%, transparent);
+}
+
+/* タイトル左に戻るボタンを並べるレイアウト */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  margin-bottom: 0.1rem;
+}
+.page-header__meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}

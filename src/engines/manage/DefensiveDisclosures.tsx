@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../../components/BackButton';
 import {
   createDisclosure, deleteDisclosure, listDisclosures, updateDisclosure,
 } from './db';
@@ -101,16 +102,17 @@ export function DefensiveDisclosures({ onBack }: Props) {
 
   return (
     <div className="manage-page">
-      <button type="button" className="research-page__back" onClick={onBack}>← ホーム</button>
-
-      <div className="manage-page__header">
-        <span className="research-page__cluster-badge" style={{ background: COLOR, color: '#fff' }}>
-          管理する
-        </span>
-        <h1 className="research-page__title">防衛公開メモ</h1>
-        <p className="manage-page__desc">
-          アイデアとタイムスタンプを記録し、先願性を確保します。特許化候補に昇格したら弁理士に相談してください。
-        </p>
+      <div className="page-header">
+        <BackButton onClick={onBack} clusterColor={COLOR} />
+        <div className="page-header__meta">
+          <span className="research-page__cluster-badge" style={{ background: COLOR, color: '#fff' }}>
+            管理する
+          </span>
+          <h1 className="research-page__title">防衛公開メモ</h1>
+          <p className="manage-page__desc">
+            アイデアとタイムスタンプを記録し、先願性を確保します。特許化候補に昇格したら弁理士に相談してください。
+          </p>
+        </div>
       </div>
 
       {error && <p className="manage-error">{error}</p>}

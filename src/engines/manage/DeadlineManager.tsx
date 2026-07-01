@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackButton } from '../../components/BackButton';
 import {
   createDeadline, deleteDeadline, listDeadlines, listNearDeadlines, updateDeadline,
 } from './db';
@@ -116,13 +117,14 @@ export function DeadlineManager({ thresholdDays, onBack }: Props) {
 
   return (
     <div className="manage-page">
-      <button type="button" className="research-page__back" onClick={onBack}>← ホーム</button>
-
-      <div className="manage-page__header">
-        <span className="research-page__cluster-badge" style={{ background: COLOR, color: '#fff' }}>
-          管理する
-        </span>
-        <h1 className="research-page__title">知財期限・ステータス管理</h1>
+      <div className="page-header">
+        <BackButton onClick={onBack} clusterColor={COLOR} />
+        <div className="page-header__meta">
+          <span className="research-page__cluster-badge" style={{ background: COLOR, color: '#fff' }}>
+            管理する
+          </span>
+          <h1 className="research-page__title">知財期限・ステータス管理</h1>
+        </div>
       </div>
 
       {/* アラートバナー */}

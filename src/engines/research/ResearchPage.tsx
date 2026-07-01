@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { BackButton } from '../../components/BackButton';
 import { DisclaimerBanner, DISCLAIMER_TEXT } from '../../components/DisclaimerBanner';
 import { clusterColor } from '../../home/presets';
 import type { ImageMediaType } from '../../lib/claude';
@@ -180,9 +181,9 @@ export function ResearchPage({ preset, onBack }: Props) {
   return (
     <div className="research-page">
       {/* ── ヘッダー ── */}
-      <div className="research-page__header">
-        <button type="button" className="research-page__back" onClick={onBack}>← ホーム</button>
-        <div className="research-page__meta">
+      <div className="page-header">
+        <BackButton onClick={onBack} clusterColor={color} />
+        <div className="page-header__meta">
           <span className="research-page__cluster-badge" style={{ background: color, color: '#fff' }}>{preset.cluster}</span>
           <h1 className="research-page__title">{preset.label}</h1>
           <div className="research-page__domains">
