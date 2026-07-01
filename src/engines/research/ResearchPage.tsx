@@ -1,11 +1,11 @@
 import { useRef, useState } from 'react';
 import { BackButton } from '../../components/BackButton';
 import { DisclaimerBanner, DISCLAIMER_TEXT } from '../../components/DisclaimerBanner';
-import { clusterColor } from '../../home/presets';
 import type { ImageMediaType } from '../../lib/claude';
-import { callClaude, callClaudeVision, isClaudeError } from '../../lib/claude';
-import { extractTextFromFile } from '../../lib/fileExtract';
+import { callClaude, callClaudeOcr, callClaudeVision, isClaudeError } from '../../lib/claude';
+import { ACCEPT_ATTR, type ImageResult, type IngestResult, ingestFile, isAcceptedFile } from '../../lib/fileIngest';
 import { buildLinks, openJplatpat } from '../../lib/jplatpat';
+import { clusterColor } from '../../home/presets';
 import type { Preset } from '../../home/presets';
 import {
   buildSystemPrompt, buildUserMessage,
@@ -14,146 +14,159 @@ import {
 import { FIELD_LABELS, type StructuredMemo } from './types';
 
 const LAW_DOMAIN_COLORS: Record<string, string> = {
-  特許: '#2563EB', 商標: '#7C3AED', 意匠: '#DB2777',
+  特許: '#2563EB', 商標: '#7C3AED', 意匠: '#DB2877',
   実用新案: '#059669', 契約: '#D97706',
 };
 
-const ACCEPTED_IMAGE_TYPES: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const ACCEPTED_DOC_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.csv', '.text'];
+const INPUT_PLACEHOLDER: Record<number, string> = {
+  1: '商標候補のネーミングを入力してください。\n業種・商品/役務の概要も書くと精度が上がります。\nまたはファイル（txt/pdf/画像など）をドロップ。',
+  2: '商標候補と指定商品・役務の概要を入力してください。\nまたはファイルをドロップ。',
+  3: '特許文書テキスト（クレーム・要約・明細書）を貼り付けてください。\nJ-PlatPat からコピーするか PDF をドロップ。',
+  4: 'アイデアや技術構想を記述してください。\nまたはメモ・ドキュメントをドロップ。',
+  5: '意匠・UIの画像をドロップしてください。\n補足説明があれば画像ドロップ後に入力できます。',
+  9: '契約書・提案書のテキストを貼り付けてください。\nPDF / DOCX / XLSX / 画像をドロップ可。',
+};
 
-interface ImageData { base64: string; mediaType: ImageMediaType; previewUrl: string; fileName: string }
+function emptyMemo(): StructuredMemo {
+  return { technicalField: '', problem: '', solution: '', components: [], synonymsAndEnglish: [], riskAssessment: '', expertQuestions: [], searchKeywords: [] };
+}
 
 interface Props {
   preset: Preset;
   onBack: () => void;
 }
 
-type PageState =
+type SubmitState =
   | { status: 'idle' }
-  | { status: 'loading' }
+  | { status: 'extracting'; fileName: string }
+  | { status: 'ocr'; fileName: string }
+  | { status: 'calling' }
   | { status: 'error'; message: string; errorType: string }
   | { status: 'done'; memo: StructuredMemo; rawText?: string };
 
-const INPUT_PLACEHOLDER: Record<number, string> = {
-  1: '商標候補のネーミングを入力してください。\n業種・商品/役務の概要も書くと精度が上がります。',
-  2: '商標候補と、指定したい商品・役務の概要を入力してください。\n既存の類似商標があれば合わせて記載してください。',
-  3: 'J-PlatPat から特許文書（クレーム・要約・明細書）のテキストをコピーして貼り付けてください。\n特許番号だけの入力は対応していません（§4 データソース方針）。',
-  4: 'アイデアや技術構想を自由に記述してください。\n\n・何を解決したいか\n・どのような仕組みで解決するか\n・既存技術との違い',
-  9: '契約書・提案書・仕様書のテキストを貼り付けてください。\nまたはボタンから PDF / DOCX / TXT ファイルを直接読み込めます。',
-};
-
-function readFileAsBase64(file: File): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const [header, base64] = result.split(',');
-      const mediaType = (header.match(/:(.*?);/)?.[1] ?? 'image/jpeg') as ImageMediaType;
-      resolve({ base64, mediaType, previewUrl: result, fileName: file.name });
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-
-function emptyMemo(): StructuredMemo {
-  return { technicalField: '', problem: '', solution: '', components: [], synonymsAndEnglish: [], riskAssessment: '', expertQuestions: [], searchKeywords: [] };
-}
-
 export function ResearchPage({ preset, onBack }: Props) {
-  const [input, setInput] = useState('');
-  const [imageData, setImageData] = useState<ImageData | null>(null);
+  const [textInput, setTextInput] = useState('');
+  // vision モード用の画像状態
+  const [visionImage, setVisionImage] = useState<ImageResult | null>(null);
   const [visionDesc, setVisionDesc] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [fileError, setFileError] = useState<string | null>(null);
-  const [state, setState] = useState<PageState>({ status: 'idle' });
+  const [ingestError, setIngestError] = useState<string | null>(null);
+  const [state, setState] = useState<SubmitState>({ status: 'idle' });
   const [copied, setCopied] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const labels = FIELD_LABELS[preset.id] ?? FIELD_LABELS[4];
   const color = clusterColor[preset.cluster];
-  const isVision = preset.inputType === 'image';
-  const hasFileUpload = preset.inputType === 'text-with-file';
+  const labels = FIELD_LABELS[preset.id] ?? FIELD_LABELS[4];
+  const isVisionPreset = preset.imageMode === 'vision';
 
-  // ── Image drag & drop ───────────────────────────────────────────────────────
+  // ── ファイル処理 ─────────────────────────────────────────────────────────────
 
-  function handleImageFile(file: File) {
-    setFileError(null);
-    if (!ACCEPTED_IMAGE_TYPES.includes(file.type as ImageMediaType)) {
-      setFileError(`非対応ファイル形式です（JPEG / PNG / GIF / WebP が使えます）。`);
+  async function handleFile(file: File) {
+    setIngestError(null);
+
+    if (!isAcceptedFile(file)) {
+      setIngestError(`非対応形式です（${file.name}）。対応: txt / md / html / pdf / docx / xlsx / jpg / png / gif / webp`);
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setFileError('ファイルサイズは 5MB 以下にしてください。');
+
+    setState({ status: 'extracting', fileName: file.name });
+    let result: IngestResult;
+    try {
+      result = await ingestFile(file);
+    } catch (e) {
+      setState({ status: 'idle' });
+      setIngestError(`読み込みエラー: ${String(e).slice(0, 150)}`);
       return;
     }
-    readFileAsBase64(file).then(setImageData).catch(() => setFileError('ファイルの読み込みに失敗しました。'));
+
+    if (result.type === 'error') {
+      setState({ status: 'idle' });
+      setIngestError(result.reason);
+      return;
+    }
+
+    if (result.type === 'image') {
+      const mode = preset.imageMode;
+      if (mode === 'vision') {
+        setVisionImage(result);
+        setState({ status: 'idle' });
+      } else if (mode === 'ocr') {
+        // Claude Vision で文字起こし → テキストパイプラインに合流
+        setState({ status: 'ocr', fileName: file.name });
+        try {
+          const ocrText = await callClaudeOcr(result.base64, result.mediaType as ImageMediaType);
+          setTextInput(prev =>
+            prev.trim()
+              ? `${prev}\n\n[画像OCR: ${file.name}]\n${ocrText}`
+              : `[画像OCR: ${file.name}]\n${ocrText}`,
+          );
+          setState({ status: 'idle' });
+        } catch (e) {
+          setState({ status: 'idle' });
+          if (isClaudeError(e)) setIngestError(e.message);
+          else setIngestError('OCRに失敗しました。テキストを直接貼り付けてください。');
+        }
+      } else {
+        setState({ status: 'idle' });
+        setIngestError('このプリセットは画像入力に対応していません。テキストファイルを使用してください。');
+      }
+      return;
+    }
+
+    // テキスト取り込み
+    setTextInput(prev =>
+      prev.trim()
+        ? `${prev}\n\n[${file.name}]\n${result.text}`
+        : result.text,
+    );
+    setState({ status: 'idle' });
   }
 
-  function handleDrop(e: React.DragEvent) {
+  // ── D&D ─────────────────────────────────────────────────────────────────────
+
+  function onDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragOver(true); }
+  function onDragLeave() { setIsDragOver(false); }
+  function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleImageFile(file);
+    if (file) handleFile(file);
   }
 
-  // ── Document file upload (preset 09): PDF / DOCX / TXT etc. ─────────────────
-
-  const [fileLoading, setFileLoading] = useState(false);
-
-  async function handleTextFile(file: File) {
-    setFileError(null);
-    const ext = '.' + (file.name.split('.').pop()?.toLowerCase() ?? '');
-    if (!ACCEPTED_DOC_EXTENSIONS.includes(ext)) {
-      setFileError(`対応ファイル形式: PDF / DOCX / TXT / MD。他の形式はテキストを直接貼り付けてください。`);
-      return;
-    }
-    setFileLoading(true);
-    try {
-      const result = await extractTextFromFile(file);
-      if (result.fallback) {
-        setFileError(result.reason ?? 'テキスト抽出に失敗しました。');
-      } else {
-        setInput(prev => prev ? `${prev}\n\n--- ${file.name} ---\n${result.text}` : result.text);
-        setFileError(null);
-      }
-    } catch (e) {
-      setFileError(`読み込みエラー: ${String(e).slice(0, 120)}`);
-    } finally {
-      setFileLoading(false);
-    }
-  }
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── 送信 ─────────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (isVision && !imageData) return;
-    if (!isVision && !input.trim()) return;
+    const hasText = textInput.trim().length > 0;
+    const hasVision = isVisionPreset && visionImage;
+    if (!hasText && !hasVision) return;
 
-    setState({ status: 'loading' });
-
+    setState({ status: 'calling' });
     try {
       let raw: string;
 
-      if (isVision && imageData) {
-        const system = buildVisionSystemPrompt();
-        const text = buildVisionTextMessage(visionDesc);
-        raw = await callClaudeVision(system, imageData.base64, imageData.mediaType, text);
+      if (isVisionPreset && visionImage) {
+        raw = await callClaudeVision(
+          buildVisionSystemPrompt(),
+          visionImage.base64,
+          visionImage.mediaType as ImageMediaType,
+          buildVisionTextMessage(hasText ? textInput : visionDesc),
+        );
       } else {
-        const system = buildSystemPrompt(preset);
-        const user = buildUserMessage(preset, input);
-        raw = await callClaude(system, user);
+        raw = await callClaude(buildSystemPrompt(preset), buildUserMessage(preset, textInput));
       }
 
       let memo: StructuredMemo;
       try {
         memo = JSON.parse(raw) as StructuredMemo;
       } catch {
-        const match = raw.match(/\{[\s\S]*\}/);
-        memo = match ? JSON.parse(match[0]) as StructuredMemo : emptyMemo();
-        if (!match) { setState({ status: 'done', memo, rawText: raw }); return; }
+        const m = raw.match(/\{[\s\S]*\}/);
+        if (m) {
+          memo = JSON.parse(m[0]) as StructuredMemo;
+        } else {
+          setState({ status: 'done', memo: emptyMemo(), rawText: raw });
+          return;
+        }
       }
       setState({ status: 'done', memo });
     } catch (err) {
@@ -171,16 +184,25 @@ export function ResearchPage({ preset, onBack }: Props) {
     setTimeout(() => setCopied(null), 2000);
   }
 
+  const isBusy = state.status === 'extracting' || state.status === 'ocr' || state.status === 'calling';
+  const canSubmit = !isBusy && (textInput.trim().length > 0 || (isVisionPreset && !!visionImage));
+
   const jplatpatLinks =
     state.status === 'done' && !state.rawText
       ? buildLinks(preset.lawDomains, state.memo.searchKeywords)
       : [];
 
-  const canSubmit = isVision ? !!imageData : !!input.trim();
+  function busyLabel() {
+    if (state.status === 'extracting') return `⏳ 抽出中… (${state.fileName})`;
+    if (state.status === 'ocr') return `⏳ 文字起こし中… (${state.fileName})`;
+    if (state.status === 'calling') return '⏳ 分析中…';
+    return '分析する';
+  }
 
   return (
     <div className="research-page">
-      {/* ── ヘッダー ── */}
+
+      {/* ヘッダー */}
       <div className="page-header">
         <BackButton onClick={onBack} clusterColor={color} />
         <div className="page-header__meta">
@@ -194,98 +216,92 @@ export function ResearchPage({ preset, onBack }: Props) {
         </div>
       </div>
 
-      {/* ── 入力フォーム ── */}
+      {/* 入力フォーム */}
       <form className="research-page__form" onSubmit={handleSubmit}>
 
-        {/* Vision: 画像アップロード */}
-        {isVision && (
-          <div className="image-upload-section">
-            <div
-              className={`image-drop-zone${isDragOver ? ' image-drop-zone--over' : ''}${imageData ? ' image-drop-zone--has-image' : ''}`}
-              onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
-              onDragLeave={() => setIsDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => !imageData && fileInputRef.current?.click()}
-            >
-              {imageData ? (
-                <>
-                  <img src={imageData.previewUrl} alt="アップロード画像" className="image-preview" />
-                  <div className="image-preview__overlay">
-                    <button type="button" className="image-preview__remove" onClick={e => { e.stopPropagation(); setImageData(null); }}>
-                      ✕ 画像を変更
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="image-drop-zone__placeholder">
-                  <span className="image-drop-zone__icon">🖼</span>
-                  <p>画像をドラッグ&ドロップ、またはクリックして選択</p>
-                  <p className="image-drop-zone__hint">JPEG / PNG / GIF / WebP ・5MB 以下</p>
-                </div>
-              )}
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/gif,image/webp"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }}
-            />
-            {fileError && <p className="upload-error">{fileError}</p>}
-            {imageData && (
-              <textarea
-                className="research-page__textarea research-page__textarea--sm"
-                value={visionDesc}
-                onChange={e => setVisionDesc(e.target.value)}
-                placeholder="補足情報（物品の用途・ターゲット市場・デザインコンセプトなど。省略可）"
-                rows={3}
-                disabled={state.status === 'loading'}
-              />
-            )}
+        {/* vision モード: 画像プレビュー */}
+        {isVisionPreset && visionImage && (
+          <div className="vision-preview-wrap">
+            <img src={visionImage.previewUrl} alt="アップロード画像" className="vision-preview-img" />
+            <button type="button" className="vision-preview-remove" onClick={() => { setVisionImage(null); setVisionDesc(''); }}>
+              ✕ 画像を変更
+            </button>
           </div>
         )}
 
-        {/* テキスト入力（Vision以外） */}
-        {!isVision && (
-          <div className="text-input-section">
+        {/* テキストエリア（全プリセット共通 D&D ゾーン） */}
+        {(!isVisionPreset || visionImage) && (
+          <div
+            className={`textarea-drop-zone${isDragOver ? ' textarea-drop-zone--over' : ''}`}
+            style={{ '--cluster-color': color } as React.CSSProperties}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+          >
             <textarea
               className="research-page__textarea"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder={INPUT_PLACEHOLDER[preset.id] ?? ''}
-              rows={8}
-              disabled={state.status === 'loading'}
+              value={textInput}
+              onChange={e => setTextInput(e.target.value)}
+              placeholder={INPUT_PLACEHOLDER[preset.id] ?? 'テキストを入力するか、ファイルをドロップしてください。'}
+              rows={isVisionPreset ? 3 : 8}
+              disabled={isBusy}
             />
-            {/* ファイル読み込みボタン（preset 09） */}
-            {hasFileUpload && (
-              <div className="file-upload-row">
-                <input
-                  type="file"
-                  id="text-file-input"
-                  accept=".pdf,.docx,.txt,.md,.csv,.text"
-                  style={{ display: 'none' }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleTextFile(f); e.target.value = ''; }}
-                />
-                <label htmlFor="text-file-input" className={`file-upload-btn${fileLoading ? ' file-upload-btn--loading' : ''}`}>
-                  {fileLoading ? '⏳ 抽出中…' : '📄 ファイルから読み込む (PDF / DOCX / TXT)'}
-                </label>
-                {fileError && <span className="upload-error">{fileError}</span>}
+            {isDragOver && (
+              <div className="drop-overlay">
+                ファイルをドロップ
               </div>
             )}
           </div>
         )}
 
+        {/* vision モードで画像未選択時のドロップゾーン */}
+        {isVisionPreset && !visionImage && (
+          <div
+            className={`image-drop-zone${isDragOver ? ' image-drop-zone--over' : ''}`}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="image-drop-zone__placeholder">
+              <span className="image-drop-zone__icon">🖼</span>
+              <p>意匠・UI の画像をドラッグ&ドロップ、またはクリックして選択</p>
+              <p className="image-drop-zone__hint">JPEG / PNG / GIF / WebP ・5MB 以下</p>
+            </div>
+          </div>
+        )}
+
+        {/* ファイル選択ボタン + エラー */}
+        <div className="file-upload-row">
+          <input
+            ref={fileInputRef}
+            type="file"
+            id="file-input"
+            accept={ACCEPT_ATTR}
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
+          />
+          <label
+            htmlFor="file-input"
+            className={`file-upload-btn${isBusy ? ' file-upload-btn--loading' : ''}`}
+          >
+            📄 ファイルを選択
+            <span className="file-upload-hint">txt/md/html/pdf/docx/xlsx/画像</span>
+          </label>
+          {ingestError && <span className="upload-error">{ingestError}</span>}
+        </div>
+
         <button
           type="submit"
           className="research-page__submit"
-          disabled={!canSubmit || state.status === 'loading'}
+          disabled={!canSubmit}
           style={{ '--cluster-color': color } as React.CSSProperties}
         >
-          {state.status === 'loading' ? '分析中…' : '分析する'}
+          {busyLabel()}
         </button>
       </form>
 
-      {/* ── エラー ── */}
+      {/* エラー */}
       {state.status === 'error' && (
         <div className={`research-error research-error--${state.errorType}`}>
           <strong>
@@ -299,15 +315,15 @@ export function ResearchPage({ preset, onBack }: Props) {
         </div>
       )}
 
-      {/* ── 生テキストフォールバック ── */}
+      {/* 生テキストフォールバック */}
       {state.status === 'done' && state.rawText && (
         <div className="research-card">
-          <h2 className="research-card__heading">分析結果（テキスト）</h2>
+          <h2 className="research-card__heading">分析結果</h2>
           <pre className="research-raw">{state.rawText}</pre>
         </div>
       )}
 
-      {/* ── 構造化メモ ── */}
+      {/* 構造化メモ */}
       {state.status === 'done' && !state.rawText && (
         <>
           <div className="research-card">
@@ -317,7 +333,7 @@ export function ResearchPage({ preset, onBack }: Props) {
               <dt>{labels.problem}</dt><dd>{state.memo.problem}</dd>
               <dt>{labels.solution}</dt><dd>{state.memo.solution}</dd>
               {state.memo.components.length > 0 && (<>
-                <dt>構成要素・チェック項目</dt>
+                <dt>構成要素</dt>
                 <dd><ul className="memo-list">{state.memo.components.map((c, i) => <li key={i}>{c}</li>)}</ul></dd>
               </>)}
               {state.memo.synonymsAndEnglish.length > 0 && (<>
@@ -337,11 +353,10 @@ export function ResearchPage({ preset, onBack }: Props) {
             )}
           </div>
 
-          {/* J-PlatPat 検索 */}
           {jplatpatLinks.length > 0 && (
             <div className="research-card">
               <h2 className="research-card__heading" style={{ color }}>J-PlatPat 検索</h2>
-              <p className="jplatpat-hint">下の検索式をコピーして J-PlatPat の式入力検索欄に貼り付けてください。</p>
+              <p className="jplatpat-hint">下の検索式をコピーして J-PlatPat の式入力欄に貼り付けてください。</p>
               {jplatpatLinks.map(link => (
                 <div key={link.domain} className="jplatpat-block">
                   <div className="jplatpat-block__label">{link.label}</div>

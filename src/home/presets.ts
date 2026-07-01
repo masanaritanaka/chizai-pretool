@@ -4,6 +4,8 @@ export type Engine = 'research' | 'research-vision' | 'watch' | 'manage';
 
 export type InputType = 'text' | 'patent-number-or-text' | 'image' | 'text-with-file' | 'crud';
 
+export type ImageMode = 'vision' | 'ocr' | 'none';
+
 export interface Preset {
   id: number;
   key: string;
@@ -15,6 +17,13 @@ export interface Preset {
   outputTemplate: string;
   /** Pexels 検索キーワード（scripts/fetch-photos.ts で使用） */
   photoKeyword: string;
+  /**
+   * 画像ファイルが投入された場合の処理モード:
+   *  vision — Claude Vision に直接渡して視覚的分析（preset 05）
+   *  ocr    — Claude Vision に文字起こしさせてテキストパイプラインに合流
+   *  none   — 画像入力は受け付けない
+   */
+  imageMode: ImageMode;
   /** §9 の段階的実装計画でこの preset が完成する Phase */
   phase: 1 | 2 | 3 | 4;
 }
@@ -30,6 +39,7 @@ export const presets: Preset[] = [
     inputType: 'text',
     outputTemplate: 'trademark-risk',
     photoKeyword: 'trademark stamp',
+    imageMode: 'ocr',
     phase: 1,
   },
   {
@@ -42,6 +52,7 @@ export const presets: Preset[] = [
     inputType: 'text',
     outputTemplate: 'trademark-checklist',
     photoKeyword: 'checklist paper',
+    imageMode: 'ocr',
     phase: 3,
   },
   {
@@ -54,6 +65,7 @@ export const presets: Preset[] = [
     inputType: 'patent-number-or-text',
     outputTemplate: 'patent-plain-translation',
     photoKeyword: 'technical blueprint',
+    imageMode: 'ocr',
     phase: 1,
   },
   {
@@ -66,6 +78,7 @@ export const presets: Preset[] = [
     inputType: 'text',
     outputTemplate: 'prior-art-memo',
     photoKeyword: 'notebook sketch',
+    imageMode: 'ocr',
     phase: 1,
   },
   {
@@ -78,6 +91,7 @@ export const presets: Preset[] = [
     inputType: 'image',
     outputTemplate: 'design-similarity',
     photoKeyword: 'interface screens',
+    imageMode: 'vision',
     phase: 3,
   },
   {
@@ -90,6 +104,7 @@ export const presets: Preset[] = [
     inputType: 'text-with-file',
     outputTemplate: 'contract-ip-risk',
     photoKeyword: 'contract signing',
+    imageMode: 'ocr',
     phase: 3,
   },
   {
@@ -102,6 +117,7 @@ export const presets: Preset[] = [
     inputType: 'text',
     outputTemplate: 'watch-query',
     photoKeyword: 'binoculars city',
+    imageMode: 'none',
     phase: 4,
   },
   {
@@ -114,6 +130,7 @@ export const presets: Preset[] = [
     inputType: 'text',
     outputTemplate: 'patent-map-query',
     photoKeyword: 'network data',
+    imageMode: 'none',
     phase: 4,
   },
   {
@@ -126,6 +143,7 @@ export const presets: Preset[] = [
     inputType: 'crud',
     outputTemplate: 'deadline-manager',
     photoKeyword: 'calendar desk',
+    imageMode: 'none',
     phase: 2,
   },
   {
@@ -138,6 +156,7 @@ export const presets: Preset[] = [
     inputType: 'crud',
     outputTemplate: 'defensive-publication',
     photoKeyword: 'archive shelf',
+    imageMode: 'none',
     phase: 2,
   },
 ];

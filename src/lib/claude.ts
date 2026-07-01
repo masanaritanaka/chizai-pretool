@@ -87,6 +87,24 @@ export async function callClaude(systemPrompt: string, userMessage: string): Pro
 }
 
 /**
+ * 画像に含まれる文字を Claude Vision で書き起こす（OCR代替）。
+ * 返ってきたテキストは通常のテキスト入力パイプラインに渡す。
+ */
+export async function callClaudeOcr(
+  imageBase64: string,
+  mediaType: ImageMediaType,
+): Promise<string> {
+  const system =
+    'You are a precise OCR engine. Extract all visible text from the image verbatim, preserving line breaks and structure as much as possible. Output only the extracted text with no explanation or commentary.';
+  const userText =
+    '画像内に含まれるすべての文字をそのまま書き起こしてください。改行・リスト・表の構造を可能な限り保持し、説明なしに書き起こしテキストのみを出力してください。';
+  return post(system, [
+    { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
+    { type: 'text', text: userText },
+  ]);
+}
+
+/**
  * Vision 入力（画像 + 補足テキスト）で Claude を呼び出す。
  * imageBase64 は "data:" プレフィクスなしの純粋な Base64 文字列。
  */
