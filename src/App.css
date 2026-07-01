@@ -769,3 +769,4 @@
   user-select: none;
 }
 .file-upload-btn:hover { border-color: #9CA3AF; color: var(--text); }
+.file-upload-btn--loading { opacity: 0.6; pointer-events: none; cursor: wait; }

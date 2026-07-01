@@ -3,6 +3,7 @@ import { DisclaimerBanner, DISCLAIMER_TEXT } from '../../components/DisclaimerBa
 import { clusterColor } from '../../home/presets';
 import type { ImageMediaType } from '../../lib/claude';
 import { callClaude, callClaudeVision, isClaudeError } from '../../lib/claude';
+import { extractTextFromFile } from '../../lib/fileExtract';
 import { buildLinks, openJplatpat } from '../../lib/jplatpat';
 import type { Preset } from '../../home/presets';
 import {
@@ -17,7 +18,7 @@ const LAW_DOMAIN_COLORS: Record<string, string> = {
 };
 
 const ACCEPTED_IMAGE_TYPES: ImageMediaType[] = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const ACCEPTED_TEXT_EXTENSIONS = ['.txt', '.md', '.csv', '.text'];
+const ACCEPTED_DOC_EXTENSIONS = ['.pdf', '.docx', '.txt', '.md', '.csv', '.text'];
 
 interface ImageData { base64: string; mediaType: ImageMediaType; previewUrl: string; fileName: string }
 
@@ -37,7 +38,7 @@ const INPUT_PLACEHOLDER: Record<number, string> = {
   2: '商標候補と、指定したい商品・役務の概要を入力してください。\n既存の類似商標があれば合わせて記載してください。',
   3: 'J-PlatPat から特許文書（クレーム・要約・明細書）のテキストをコピーして貼り付けてください。\n特許番号だけの入力は対応していません（§4 データソース方針）。',
   4: 'アイデアや技術構想を自由に記述してください。\n\n・何を解決したいか\n・どのような仕組みで解決するか\n・既存技術との違い',
-  9: '契約書・提案書・仕様書のテキストを貼り付けてください。\nまたは右のボタンから .txt / .md ファイルを読み込めます。',
+  9: '契約書・提案書・仕様書のテキストを貼り付けてください。\nまたはボタンから PDF / DOCX / TXT ファイルを直接読み込めます。',
 };
 
 function readFileAsBase64(file: File): Promise<ImageData> {
@@ -54,14 +55,6 @@ function readFileAsBase64(file: File): Promise<ImageData> {
   });
 }
 
-function readFileAsText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsText(file, 'utf-8');
-  });
-}
 
 function emptyMemo(): StructuredMemo {
   return { technicalField: '', problem: '', solution: '', components: [], synonymsAndEnglish: [], riskAssessment: '', expertQuestions: [], searchKeywords: [] };
@@ -104,20 +97,30 @@ export function ResearchPage({ preset, onBack }: Props) {
     if (file) handleImageFile(file);
   }
 
-  // ── Text file upload (preset 09) ────────────────────────────────────────────
+  // ── Document file upload (preset 09): PDF / DOCX / TXT etc. ─────────────────
+
+  const [fileLoading, setFileLoading] = useState(false);
 
   async function handleTextFile(file: File) {
     setFileError(null);
-    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-    if (!ACCEPTED_TEXT_EXTENSIONS.includes(ext)) {
-      setFileError(`テキストファイル（${ACCEPTED_TEXT_EXTENSIONS.join(' / ')}）のみ対応しています。PDF/DOCX はテキストをコピーして貼り付けてください。`);
+    const ext = '.' + (file.name.split('.').pop()?.toLowerCase() ?? '');
+    if (!ACCEPTED_DOC_EXTENSIONS.includes(ext)) {
+      setFileError(`対応ファイル形式: PDF / DOCX / TXT / MD。他の形式はテキストを直接貼り付けてください。`);
       return;
     }
+    setFileLoading(true);
     try {
-      const text = await readFileAsText(file);
-      setInput(prev => prev ? `${prev}\n\n--- ${file.name} ---\n${text}` : text);
-    } catch {
-      setFileError('ファイルの読み込みに失敗しました。');
+      const result = await extractTextFromFile(file);
+      if (result.fallback) {
+        setFileError(result.reason ?? 'テキスト抽出に失敗しました。');
+      } else {
+        setInput(prev => prev ? `${prev}\n\n--- ${file.name} ---\n${result.text}` : result.text);
+        setFileError(null);
+      }
+    } catch (e) {
+      setFileError(`読み込みエラー: ${String(e).slice(0, 120)}`);
+    } finally {
+      setFileLoading(false);
     }
   }
 
@@ -258,12 +261,12 @@ export function ResearchPage({ preset, onBack }: Props) {
                 <input
                   type="file"
                   id="text-file-input"
-                  accept=".txt,.md,.csv,.text"
+                  accept=".pdf,.docx,.txt,.md,.csv,.text"
                   style={{ display: 'none' }}
                   onChange={e => { const f = e.target.files?.[0]; if (f) handleTextFile(f); e.target.value = ''; }}
                 />
-                <label htmlFor="text-file-input" className="file-upload-btn">
-                  📄 ファイルから読み込む (.txt / .md)
+                <label htmlFor="text-file-input" className={`file-upload-btn${fileLoading ? ' file-upload-btn--loading' : ''}`}>
+                  {fileLoading ? '⏳ 抽出中…' : '📄 ファイルから読み込む (PDF / DOCX / TXT)'}
                 </label>
                 {fileError && <span className="upload-error">{fileError}</span>}
               </div>
