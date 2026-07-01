@@ -1,4 +1,4 @@
-import { clusters, presetsByCluster, type Preset } from './presets';
+import { clusters, clusterColor, photoPath, presetsByCluster, type Preset } from './presets';
 
 interface HomeProps {
   onSelectPreset: (preset: Preset) => void;
@@ -22,11 +22,34 @@ export function Home({ onSelectPreset }: HomeProps) {
               <button
                 key={preset.id}
                 type="button"
-                className="preset-button"
+                className="preset-card"
                 onClick={() => onSelectPreset(preset)}
               >
-                <span className="preset-button__label">{preset.label}</span>
-                <span className="preset-button__domains">{preset.lawDomains.join(' / ')}</span>
+                <div className="preset-card__photo-wrap">
+                  <img
+                    src={photoPath(preset.id)}
+                    alt=""
+                    className="preset-card__photo"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  {/* デュオトーンオーバーレイ */}
+                  <div
+                    className="preset-card__duotone"
+                    style={{ backgroundColor: clusterColor[cluster] }}
+                  />
+                  {/* 通し番号 */}
+                  <span className="preset-card__number">
+                    {String(preset.id).padStart(2, '0')}
+                  </span>
+                </div>
+
+                <div className="preset-card__body">
+                  <span className="preset-card__label">{preset.label}</span>
+                  <span className="preset-card__domains">{preset.lawDomains.join(' / ')}</span>
+                </div>
               </button>
             ))}
           </div>

@@ -13,6 +13,8 @@ export interface Preset {
   lawDomains: string[];
   inputType: InputType;
   outputTemplate: string;
+  /** Pexels 検索キーワード（scripts/fetch-photos.ts で使用） */
+  photoKeyword: string;
   /** §9 の段階的実装計画でこの preset が完成する Phase */
   phase: 1 | 2 | 3 | 4;
 }
@@ -27,6 +29,7 @@ export const presets: Preset[] = [
     lawDomains: ['商標'],
     inputType: 'text',
     outputTemplate: 'trademark-risk',
+    photoKeyword: 'trademark stamp',
     phase: 1,
   },
   {
@@ -38,6 +41,7 @@ export const presets: Preset[] = [
     lawDomains: ['商標'],
     inputType: 'text',
     outputTemplate: 'trademark-checklist',
+    photoKeyword: 'checklist paper',
     phase: 3,
   },
   {
@@ -49,6 +53,7 @@ export const presets: Preset[] = [
     lawDomains: ['特許', '実用新案'],
     inputType: 'patent-number-or-text',
     outputTemplate: 'patent-plain-translation',
+    photoKeyword: 'technical blueprint',
     phase: 1,
   },
   {
@@ -60,6 +65,7 @@ export const presets: Preset[] = [
     lawDomains: ['特許', '実用新案'],
     inputType: 'text',
     outputTemplate: 'prior-art-memo',
+    photoKeyword: 'notebook sketch',
     phase: 1,
   },
   {
@@ -71,6 +77,7 @@ export const presets: Preset[] = [
     lawDomains: ['意匠'],
     inputType: 'image',
     outputTemplate: 'design-similarity',
+    photoKeyword: 'interface screens',
     phase: 3,
   },
   {
@@ -82,6 +89,7 @@ export const presets: Preset[] = [
     lawDomains: ['契約', '商標', '特許', '意匠'],
     inputType: 'text',
     outputTemplate: 'contract-ip-risk',
+    photoKeyword: 'contract signing',
     phase: 3,
   },
   {
@@ -93,6 +101,7 @@ export const presets: Preset[] = [
     lawDomains: ['特許', '商標'],
     inputType: 'text',
     outputTemplate: 'watch-query',
+    photoKeyword: 'binoculars city',
     phase: 4,
   },
   {
@@ -104,6 +113,7 @@ export const presets: Preset[] = [
     lawDomains: ['特許'],
     inputType: 'text',
     outputTemplate: 'patent-map-query',
+    photoKeyword: 'network data',
     phase: 4,
   },
   {
@@ -115,6 +125,7 @@ export const presets: Preset[] = [
     lawDomains: ['特許', '実用新案', '意匠', '商標'],
     inputType: 'crud',
     outputTemplate: 'deadline-manager',
+    photoKeyword: 'calendar desk',
     phase: 2,
   },
   {
@@ -126,12 +137,24 @@ export const presets: Preset[] = [
     lawDomains: ['特許', '実用新案'],
     inputType: 'crud',
     outputTemplate: 'defensive-publication',
+    photoKeyword: 'archive shelf',
     phase: 2,
   },
 ];
 
 export const clusters: Cluster[] = ['調べる', '監視する', '管理する'];
 
+export const clusterColor: Record<Cluster, string> = {
+  '調べる': '#3730a3',   // indigo-800
+  '監視する': '#92400e', // amber-800
+  '管理する': '#1f2937', // graphite (gray-800)
+};
+
 export function presetsByCluster(cluster: Cluster): Preset[] {
   return presets.filter((p) => p.cluster === cluster).sort((a, b) => a.id - b.id);
+}
+
+/** /photos/{id:02d}.jpg のURLを返す（public/photos/ → Viteが / にマウント） */
+export function photoPath(id: number): string {
+  return `/photos/${String(id).padStart(2, '0')}.jpg`;
 }

@@ -33,6 +33,30 @@ npm install
 npm run tauri dev
 ```
 
+### Pexels API キーの設定（プリセットカード写真の取得）
+
+各プリセットカードの背景写真は [Pexels](https://www.pexels.com/) から取得します。  
+写真の取得はビルド前の**ワンタイム実行**で、アプリ実行時には API を叩きません（オフライン動作を維持）。
+
+1. [https://www.pexels.com/api/](https://www.pexels.com/api/) にアクセスし、無料の API キーを取得します。
+2. リポジトリ直下に `.env` ファイルを作成します:
+   ```bash
+   cp .env.example .env
+   ```
+3. `.env` を開き `PEXELS_API_KEY=` の後にキーを貼り付けます。
+4. 写真を取得します（`src/assets/photos/` に保存されます）:
+   ```bash
+   npm run fetch-photos
+   ```
+5. 取得した写真と撮影者クレジット（`public/photos/CREDITS.md`）をコミットします:
+   ```bash
+   git add public/photos/
+   git commit -m "chore: add preset card photos"
+   ```
+
+> `.env` ファイルは `.gitignore` に含まれているためリポジトリには含まれません。  
+> 写真ファイル（`.jpg`）はコミット対象です。再取得したい場合は対象ファイルを削除してから再実行してください。
+
 ### プロダクションビルド
 
 ```bash
