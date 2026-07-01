@@ -2,7 +2,7 @@ export type Cluster = '調べる' | '監視する' | '管理する';
 
 export type Engine = 'research' | 'research-vision' | 'watch' | 'manage';
 
-export type InputType = 'text' | 'patent-number-or-text' | 'image' | 'crud';
+export type InputType = 'text' | 'patent-number-or-text' | 'image' | 'text-with-file' | 'crud';
 
 export interface Preset {
   id: number;
@@ -87,7 +87,7 @@ export const presets: Preset[] = [
     cluster: '調べる',
     engine: 'research',
     lawDomains: ['契約', '商標', '特許', '意匠'],
-    inputType: 'text',
+    inputType: 'text-with-file',
     outputTemplate: 'contract-ip-risk',
     photoKeyword: 'contract signing',
     phase: 3,

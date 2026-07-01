@@ -93,8 +93,8 @@ function App() {
 
     const { preset } = view;
 
-    // Phase 1: Research (presets 1, 3, 4)
-    if (preset.engine === 'research' && [1, 3, 4].includes(preset.id)) {
+    // Phase 1 + 3: Research engine (presets 1, 2, 3, 4, 5, 9)
+    if (preset.engine === 'research') {
       return <ResearchPage preset={preset} onBack={handleBack} />;
     }
 
@@ -120,7 +120,7 @@ function App() {
   }
 
   const isResearchPage =
-    view.name === 'preset' && view.preset.engine === 'research' && [1, 3, 4].includes(view.preset.id);
+    view.name === 'preset' && view.preset.engine === 'research';
 
   return (
     <div className="app">

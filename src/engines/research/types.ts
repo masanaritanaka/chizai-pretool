@@ -30,6 +30,11 @@ export const FIELD_LABELS: Record<number, FieldLabels> = {
     problem: '混同可能性・識別力の課題',
     solution: '差別化のアプローチ',
   },
+  2: {
+    technicalField: '商品・役務の区分（ニース分類）',
+    problem: '出願阻害リスク',
+    solution: '修正・準備アクション',
+  },
   3: {
     technicalField: '技術分野・IPC分類候補',
     problem: '発明が解決する課題',
@@ -39,5 +44,15 @@ export const FIELD_LABELS: Record<number, FieldLabels> = {
     technicalField: 'アイデアの技術分野',
     problem: 'アイデアが解決する課題',
     solution: '技術的解決手段',
+  },
+  5: {
+    technicalField: '物品カテゴリ・ロカルノ分類候補',
+    problem: '類似する可能性のある意匠の特徴',
+    solution: '形状・配置・全体的印象の近さの評価',
+  },
+  9: {
+    technicalField: '契約・文書の種類と対象分野',
+    problem: '知財リスクのある条項・記述',
+    solution: 'リスク条項の修正案・対処アプローチ',
   },
 };

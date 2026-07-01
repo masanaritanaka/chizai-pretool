@@ -17,7 +17,21 @@ export function isClaudeError(e: unknown): e is ClaudeError {
   return typeof e === 'object' && e !== null && (e as ClaudeError).isClaudeError === true;
 }
 
-export async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
+export type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
+
+type UserContent = string | ContentBlock[];
+
+interface ContentBlock {
+  type: 'text' | 'image';
+  text?: string;
+  source?: {
+    type: 'base64';
+    media_type: ImageMediaType;
+    data: string;
+  };
+}
+
+async function post(systemPrompt: string, userContent: UserContent): Promise<string> {
   const apiKey = await getApiKey();
   if (!apiKey) {
     throw makeError(
@@ -39,7 +53,7 @@ export async function callClaude(systemPrompt: string, userMessage: string): Pro
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
         system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }],
+        messages: [{ role: 'user', content: userContent }],
       }),
     });
   } catch {
@@ -50,10 +64,7 @@ export async function callClaude(systemPrompt: string, userMessage: string): Pro
   }
 
   if (response.status === 429) {
-    throw makeError(
-      'rate_limit',
-      'レート制限に達しました。しばらく待ってから再試行してください。',
-    );
+    throw makeError('rate_limit', 'レート制限に達しました。しばらく待ってから再試行してください。');
   }
 
   if (!response.ok) {
@@ -62,12 +73,42 @@ export async function callClaude(systemPrompt: string, userMessage: string): Pro
     try {
       const parsed = JSON.parse(body) as { error?: { message?: string } };
       if (parsed?.error?.message) detail += `: ${parsed.error.message}`;
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
     throw makeError('api_error', `API エラー — ${detail}`);
   }
 
   const data = await response.json() as { content: { text: string }[] };
   return data.content[0].text;
+}
+
+/** テキスト入力で Claude を呼び出す */
+export async function callClaude(systemPrompt: string, userMessage: string): Promise<string> {
+  return post(systemPrompt, userMessage);
+}
+
+/**
+ * Vision 入力（画像 + 補足テキスト）で Claude を呼び出す。
+ * imageBase64 は "data:" プレフィクスなしの純粋な Base64 文字列。
+ */
+export async function callClaudeVision(
+  systemPrompt: string,
+  imageBase64: string,
+  mediaType: ImageMediaType,
+  textDescription: string,
+): Promise<string> {
+  const content: ContentBlock[] = [
+    {
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: mediaType,
+        data: imageBase64,
+      },
+    },
+    {
+      type: 'text',
+      text: textDescription || '画像を分析してください。',
+    },
+  ];
+  return post(systemPrompt, content);
 }
