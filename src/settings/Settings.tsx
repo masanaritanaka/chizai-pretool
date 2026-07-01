@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { deleteApiKey, getApiKey, saveApiKey } from '../lib/keychain';
 
-type Status = 'loading' | 'idle' | 'saving' | 'saved' | 'error';
+type Status = 'loading' | 'idle' | 'saving' | 'error';
 
-export function Settings() {
+interface Props {
+  thresholdDays: number;
+  onThresholdChange: (days: number) => void;
+}
+
+export function Settings({ thresholdDays, onThresholdChange }: Props) {
   const [keyInput, setKeyInput] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const [thresholdInput, setThresholdInput] = useState(String(thresholdDays));
 
   useEffect(() => {
     getApiKey()
@@ -28,7 +34,7 @@ export function Settings() {
       await saveApiKey(keyInput.trim());
       setKeyInput('');
       setHasStoredKey(true);
-      setStatus('saved');
+      setStatus('idle');
     } catch (err) {
       setErrorMessage(String(err));
       setStatus('error');
@@ -47,15 +53,23 @@ export function Settings() {
     }
   }
 
+  function handleThresholdSave() {
+    const n = parseInt(thresholdInput, 10);
+    if (!isNaN(n) && n >= 1 && n <= 365) {
+      onThresholdChange(n);
+    }
+  }
+
   return (
     <div className="settings">
       <h2>設定</h2>
 
+      {/* ── Claude API キー ── */}
       <section className="settings__section">
         <h3>Claude APIキー</h3>
         <p className="settings__hint">
           APIキーは OS のキーチェーン（macOS Keychain / Windows 資格情報マネージャー）に保存されます。
-          このアプリやリポジトリに平文で保存されることはありません。
+          アプリやリポジトリに平文で残ることはありません。
         </p>
 
         {status === 'loading' && <p>読み込み中…</p>}
@@ -63,9 +77,8 @@ export function Settings() {
         {status !== 'loading' && (
           <>
             <p className="settings__status">
-              現在のキー: {hasStoredKey ? '保存済み' : '未設定'}
+              現在のキー: {hasStoredKey ? '保存済み ✓' : '未設定'}
             </p>
-
             <div className="settings__form">
               <input
                 type="password"
@@ -83,10 +96,32 @@ export function Settings() {
                 </button>
               )}
             </div>
-
             {status === 'error' && <p className="settings__error">エラー: {errorMessage}</p>}
           </>
         )}
+      </section>
+
+      {/* ── 期限アラート閾値 ── */}
+      <section className="settings__section">
+        <h3>期限アラートの閾値</h3>
+        <p className="settings__hint">
+          期限まで何日以内の案件をアラート表示するかを設定します（1〜365日）。
+        </p>
+        <div className="settings__form settings__form--inline">
+          <input
+            type="number"
+            min={1}
+            max={365}
+            value={thresholdInput}
+            onChange={(e) => setThresholdInput(e.target.value)}
+            style={{ width: '5rem' }}
+          />
+          <span className="settings__unit">日前</span>
+          <button type="button" onClick={handleThresholdSave}>
+            適用
+          </button>
+        </div>
+        <p className="settings__status">現在の設定: {thresholdDays}日前</p>
       </section>
     </div>
   );

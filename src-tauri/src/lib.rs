@@ -1,7 +1,19 @@
 mod keychain;
 
+use tauri_plugin_sql::{Builder as SqlBuilder, Migration, MigrationKind};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+  let migrations = vec![Migration {
+    version: 1,
+    description: "create_initial_tables",
+    sql: include_str!(concat!(
+      env!("CARGO_MANIFEST_DIR"),
+      "/../src/db/schema.sql"
+    )),
+    kind: MigrationKind::Up,
+  }];
+
   tauri::Builder::default()
     .setup(|app| {
       if cfg!(debug_assertions) {
@@ -15,6 +27,8 @@ pub fn run() {
     })
     .plugin(tauri_plugin_http::init())
     .plugin(tauri_plugin_shell::init())
+    .plugin(SqlBuilder::default().add_migrations("sqlite:chizai-pretool.db", migrations).build())
+    .plugin(tauri_plugin_notification::init())
     .invoke_handler(tauri::generate_handler![
       keychain::save_api_key,
       keychain::get_api_key,

@@ -10,6 +10,7 @@ const LAW_DOMAIN_COLORS: Record<string, string> = {
 
 interface HomeProps {
   onSelectPreset: (preset: Preset) => void;
+  nearDeadlineCount?: number;
 }
 
 const clusterDescriptions: Record<string, string> = {
@@ -18,12 +19,19 @@ const clusterDescriptions: Record<string, string> = {
   管理する: '出願・登録のステータスや期限をローカルで管理します',
 };
 
-export function Home({ onSelectPreset }: HomeProps) {
+export function Home({ onSelectPreset, nearDeadlineCount = 0 }: HomeProps) {
   return (
     <div className="home">
       {clusters.map((cluster) => (
         <section key={cluster} className="cluster">
-          <h2 className="cluster__title">{cluster}</h2>
+          <div className="cluster__heading-row">
+            <h2 className="cluster__title">{cluster}</h2>
+            {cluster === '管理する' && nearDeadlineCount > 0 && (
+              <span className="deadline-badge">
+                ⚠ {nearDeadlineCount}件 期限接近
+              </span>
+            )}
+          </div>
           <p className="cluster__description">{clusterDescriptions[cluster]}</p>
           <div className="cluster__grid">
             {presetsByCluster(cluster).map((preset) => (
@@ -43,12 +51,10 @@ export function Home({ onSelectPreset }: HomeProps) {
                       (e.currentTarget as HTMLImageElement).style.display = 'none';
                     }}
                   />
-                  {/* デュオトーンオーバーレイ */}
                   <div
                     className="preset-card__duotone"
                     style={{ backgroundColor: clusterColor[cluster] }}
                   />
-                  {/* 通し番号 */}
                   <span className="preset-card__number">
                     {String(preset.id).padStart(2, '0')}
                   </span>
