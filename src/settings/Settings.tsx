@@ -5,7 +5,7 @@ type Status = 'loading' | 'idle' | 'saving' | 'error';
 
 interface Props {
   thresholdDays: number;
-  onThresholdChange: (days: number) => void;
+  onThresholdChange: (days: number) => Promise<void>;
 }
 
 export function Settings({ thresholdDays, onThresholdChange }: Props) {
@@ -53,10 +53,10 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
     }
   }
 
-  function handleThresholdSave() {
+  async function handleThresholdSave() {
     const n = parseInt(thresholdInput, 10);
     if (!isNaN(n) && n >= 1 && n <= 365) {
-      onThresholdChange(n);
+      await onThresholdChange(n);
     }
   }
 

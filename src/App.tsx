@@ -3,26 +3,28 @@ import { DisclaimerBanner } from './components/DisclaimerBanner';
 import { ResearchPage } from './engines/research/ResearchPage';
 import { DeadlineManager } from './engines/manage/DeadlineManager';
 import { DefensiveDisclosures } from './engines/manage/DefensiveDisclosures';
-import { listNearDeadlines } from './engines/manage/db';
+import { getSettingValue, listNearDeadlines, setSettingValue } from './engines/manage/db';
 import { Home } from './home/Home';
 import type { Preset } from './home/presets';
 import { Settings } from './settings/Settings';
 import './App.css';
 
-const THRESHOLD_KEY = 'deadline_threshold_days';
 const DEFAULT_THRESHOLD = 30;
-
-function getThreshold(): number {
-  const v = localStorage.getItem(THRESHOLD_KEY);
-  return v ? Number(v) : DEFAULT_THRESHOLD;
-}
+const THRESHOLD_SETTING_KEY = 'deadline_threshold_days';
 
 type View = { name: 'home' } | { name: 'settings' } | { name: 'preset'; preset: Preset };
 
 function App() {
   const [view, setView] = useState<View>({ name: 'home' });
   const [nearDeadlineCount, setNearDeadlineCount] = useState(0);
-  const [threshold, setThreshold] = useState(getThreshold);
+  const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+
+  // DBから閾値を初期ロード
+  useEffect(() => {
+    getSettingValue(THRESHOLD_SETTING_KEY)
+      .then(v => { if (v !== null) setThreshold(Number(v)); })
+      .catch(() => {}); // DB初期化前は無視
+  }, []);
 
   async function refreshAlerts() {
     try {
@@ -57,8 +59,8 @@ function App() {
     refreshAlerts();
   }, [threshold]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleThresholdChange(days: number) {
-    localStorage.setItem(THRESHOLD_KEY, String(days));
+  async function handleThresholdChange(days: number) {
+    await setSettingValue(THRESHOLD_SETTING_KEY, String(days));
     setThreshold(days);
   }
 

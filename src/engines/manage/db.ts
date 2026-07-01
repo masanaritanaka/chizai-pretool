@@ -181,3 +181,22 @@ export async function deleteDisclosure(id: number): Promise<void> {
   const db = await getDb();
   await db.execute('DELETE FROM defensive_disclosures WHERE id=?', [id]);
 }
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export async function getSettingValue(key: string): Promise<string | null> {
+  const db = await getDb();
+  const rows = await db.select<{ value: string }[]>(
+    'SELECT value FROM settings WHERE key=?',
+    [key],
+  );
+  return rows[0]?.value ?? null;
+}
+
+export async function setSettingValue(key: string, value: string): Promise<void> {
+  const db = await getDb();
+  await db.execute(
+    'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+    [key, value],
+  );
+}
