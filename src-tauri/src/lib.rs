@@ -1,4 +1,5 @@
 mod keychain;
+mod file_reader;
 
 use tauri_plugin_sql::{Builder as SqlBuilder, Migration, MigrationKind};
 
@@ -38,6 +39,7 @@ pub fn run() {
       keychain::save_api_key,
       keychain::get_api_key,
       keychain::delete_api_key,
+      file_reader::read_dropped_file,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

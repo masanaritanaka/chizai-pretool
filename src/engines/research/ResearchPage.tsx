@@ -1,8 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BackButton } from '../../components/BackButton';
 import { DisclaimerBanner, DISCLAIMER_TEXT } from '../../components/DisclaimerBanner';
 import type { ImageMediaType } from '../../lib/claude';
 import { callClaude, callClaudeOcr, callClaudeVision, isClaudeError } from '../../lib/claude';
+import { invoke } from '@tauri-apps/api/core';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { ACCEPT_ATTR, type ImageResult, type IngestResult, ingestFile, isAcceptedFile } from '../../lib/fileIngest';
 import { buildLinks, openJplatpat } from '../../lib/jplatpat';
 import { clusterColor } from '../../home/presets';
@@ -122,7 +124,39 @@ export function ResearchPage({ preset, onBack }: Props) {
     setState({ status: 'idle' });
   }
 
-  // ── D&D ─────────────────────────────────────────────────────────────────────
+  // ── Tauri Finder D&D（onDragDropEvent 経由） ──────────────────────────────────
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    getCurrentWebviewWindow().onDragDropEvent(async (event) => {
+      const { type } = event.payload;
+      if (type === 'enter' || type === 'over') {
+        setIsDragOver(true);
+      } else if (type === 'leave') {
+        setIsDragOver(false);
+      } else if (type === 'drop') {
+        setIsDragOver(false);
+        const paths: string[] = (event.payload as { paths: string[] }).paths ?? [];
+        if (paths.length === 0) return;
+        const path = paths[0];
+        const filename = path.split('/').pop() || path.split('\\').pop() || path;
+        try {
+          // Rust コマンド経由でファイルバイト列を取得（scope 制約なし）
+          const bytes = await invoke<number[]>('read_dropped_file', { path });
+          const uint8 = new Uint8Array(bytes);
+          const blob = new Blob([uint8]);
+          const file = new File([blob], filename);
+          await handleFile(file);
+        } catch (e) {
+          setIngestError(`Finder からのファイル読み込みエラー: ${String(e).slice(0, 120)}`);
+        }
+      }
+    }).then(fn => { unlisten = fn; });
+    return () => { unlisten?.(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset.id]);
+
+  // ── Web D&D（テキストエリア内ドロップ / ブラウザ経由） ─────────────────────────
 
   function onDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragOver(true); }
   function onDragLeave() { setIsDragOver(false); }

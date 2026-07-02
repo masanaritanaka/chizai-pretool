@@ -164,6 +164,13 @@ export async function ingestFile(file: File): Promise<IngestResult> {
         if (!IMAGE_TYPES.has(mimeType as ImageMediaType)) {
           return { type: 'error', reason: `非対応の画像形式です（${mimeType}）。`, sourceFile: file.name };
         }
+        if (file.size > 5 * 1024 * 1024) {
+          return {
+            type: 'error',
+            reason: `画像ファイルが 5 MB を超えています（${(file.size / 1024 / 1024).toFixed(1)} MB）。Claude API のペイロード制限のため 5 MB 以下の画像を使用してください。`,
+            sourceFile: file.name,
+          };
+        }
         return readImageAsBase64(file);
       }
       default:
