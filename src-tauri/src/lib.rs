@@ -18,6 +18,12 @@ pub fn run() {
       sql: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/db/v2_settings.sql")),
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 3,
+      description: "add_watch_targets_table",
+      sql: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/db/v3_watch_targets.sql")),
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

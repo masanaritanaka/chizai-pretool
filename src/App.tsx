@@ -5,6 +5,8 @@ import { ResearchPage } from './engines/research/ResearchPage';
 import { DeadlineManager } from './engines/manage/DeadlineManager';
 import { DefensiveDisclosures } from './engines/manage/DefensiveDisclosures';
 import { getSettingValue, listNearDeadlines, setSettingValue } from './engines/manage/db';
+import { CompetitorWatcher } from './engines/watch/CompetitorWatcher';
+import { PatentMapGenerator } from './engines/watch/PatentMapGenerator';
 import { Home } from './home/Home';
 import type { Preset } from './home/presets';
 import { clusterColor } from './home/presets';
@@ -96,7 +98,7 @@ function App() {
     const { preset } = view;
 
     // Phase 1 + 3: Research engine (presets 1, 2, 3, 4, 5, 9)
-    if (preset.engine === 'research') {
+    if (preset.engine === 'research' || preset.engine === 'research-vision') {
       return <ResearchPage preset={preset} onBack={handleBack} />;
     }
 
@@ -110,7 +112,17 @@ function App() {
       return <DefensiveDisclosures onBack={handleBack} />;
     }
 
-    // Placeholder for unimplemented presets (Watch engine etc.)
+    // Phase 4: Watch (preset 7)
+    if (preset.id === 7) {
+      return <CompetitorWatcher onBack={handleBack} />;
+    }
+
+    // Phase 4: Watch (preset 8)
+    if (preset.id === 8) {
+      return <PatentMapGenerator onBack={handleBack} />;
+    }
+
+    // フォールバック（全 Phase 実装済みのため到達しないはず）
     const pColor = clusterColor[preset.cluster];
     return (
       <div className="preset-placeholder">
@@ -121,7 +133,6 @@ function App() {
               {preset.cluster}
             </span>
             <h2 className="research-page__title" style={{ fontSize: '1.3rem' }}>{preset.label}</h2>
-            <p className="preset-placeholder__phase">Phase {preset.phase} で実装予定です。</p>
           </div>
         </div>
       </div>
@@ -129,7 +140,8 @@ function App() {
   }
 
   const isResearchPage =
-    view.name === 'preset' && view.preset.engine === 'research';
+    view.name === 'preset' &&
+    (view.preset.engine === 'research' || view.preset.engine === 'research-vision');
 
   return (
     <div className="app">
