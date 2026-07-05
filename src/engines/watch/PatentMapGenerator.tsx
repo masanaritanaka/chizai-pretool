@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BackButton } from '../../components/BackButton';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
+import { LoadingBar } from '../../components/LoadingBar';
 import { callClaude } from '../../lib/claude';
 import { openJplatpat } from '../../lib/jplatpat';
 import { buildPatentMapUserMessage, PATENT_MAP_PROMPT } from './prompts';
@@ -149,9 +150,13 @@ export function PatentMapGenerator({ onBack }: Props) {
             onClick={handleGenerate}
             disabled={loading || !techField.trim()}
           >
-            {loading ? 'マップ生成中…' : '特許マップを生成'}
+            {loading && <span className="btn-spinner" style={{ borderTopColor: '#fff' }} />}
+            {loading ? 'AIがマップを作成中…' : '特許マップを作成する'}
           </button>
         </div>
+        {loading && (
+          <LoadingBar label="AIが特許マップを作成しています…" color={CLUSTER_COLOR} />
+        )}
         {error && <p className="watch-error">{error}</p>}
       </section>
 

@@ -1,7 +1,12 @@
-import { fetch } from '@tauri-apps/plugin-http';
-import { getApiKey } from './keychain';
+import { invoke } from '@tauri-apps/api/core';
 
-export type ClaudeErrorType = 'no_key' | 'network' | 'rate_limit' | 'api_error';
+export type ClaudeErrorType =
+  | 'no_key'
+  | 'network'
+  | 'auth'
+  | 'billing'
+  | 'rate_limit'
+  | 'api_error';
 
 export interface ClaudeError {
   readonly isClaudeError: true;
@@ -32,52 +37,71 @@ interface ContentBlock {
 }
 
 async function post(systemPrompt: string, userContent: UserContent): Promise<string> {
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw makeError(
-      'no_key',
-      'Claude APIキーが設定されていません。右上の「設定」から登録してください。',
-    );
-  }
+  // APIキーは Rust コマンド内で OS キーチェーンから直接取得。JS には渡さない。
+  const body = JSON.stringify({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userContent }],
+  });
 
-  let response: Response;
+  let responseText: string;
   try {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userContent }],
-      }),
-    });
-  } catch {
-    throw makeError(
-      'network',
-      'ネットワークエラーが発生しました。インターネット接続を確認してください。',
-    );
+    responseText = await invoke<string>('call_claude_api', { body });
+  } catch (e: unknown) {
+    const raw = String(e);
+    if (import.meta.env.DEV) console.error('[CLAUDE_INVOKE_ERROR]', raw);
+
+    // キー未設定（Rust 側がキーチェーンから取得できなかった）
+    if (raw === 'NO_KEY') {
+      throw makeError(
+        'no_key',
+        'Claude APIキーが設定されていません。右上の「設定」から登録してください。',
+      );
+    }
+
+    if (raw.startsWith('HTTP:')) {
+      const firstColon  = raw.indexOf(':');
+      const secondColon = raw.indexOf(':', firstColon + 1);
+      const status      = Number(raw.slice(firstColon + 1, secondColon));
+      const bodyText    = raw.slice(secondColon + 1);
+
+      if (status === 401) {
+        throw makeError(
+          'auth',
+          'APIキーが無効です。設定画面で正しいキーを確認・再登録してください。',
+        );
+      }
+      if (status === 402 || status === 529) {
+        throw makeError(
+          'billing',
+          `残高不足またはサービス一時停止中です（${status}）。`,
+        );
+      }
+      if (status === 429) {
+        throw makeError(
+          'rate_limit',
+          'しばらく待ってから再試行してください（目安: 1〜2分）。',
+        );
+      }
+
+      let detail = `ステータス ${status}`;
+      try {
+        const parsed = JSON.parse(bodyText) as { error?: { message?: string; type?: string } };
+        if (parsed?.error?.message) detail += `: ${parsed.error.message}`;
+        if (parsed?.error?.type) detail += ` (${parsed.error.type})`;
+      } catch { /* ignore */ }
+      throw makeError('api_error', `API エラー — ${detail}`);
+    }
+
+    if (raw.startsWith('NETWORK:')) {
+      throw makeError('network', `ネットワークエラー: ${raw.slice(8, 300)}`);
+    }
+
+    throw makeError('network', `エラー: ${raw.slice(0, 300)}`);
   }
 
-  if (response.status === 429) {
-    throw makeError('rate_limit', 'レート制限に達しました。しばらく待ってから再試行してください。');
-  }
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    let detail = `ステータス ${response.status}`;
-    try {
-      const parsed = JSON.parse(body) as { error?: { message?: string } };
-      if (parsed?.error?.message) detail += `: ${parsed.error.message}`;
-    } catch { /* ignore */ }
-    throw makeError('api_error', `API エラー — ${detail}`);
-  }
-
-  const data = await response.json() as { content: { text: string }[] };
+  const data = JSON.parse(responseText) as { content: { text: string }[] };
   return data.content[0].text;
 }
 
@@ -86,10 +110,6 @@ export async function callClaude(systemPrompt: string, userMessage: string): Pro
   return post(systemPrompt, userMessage);
 }
 
-/**
- * 画像に含まれる文字を Claude Vision で書き起こす（OCR代替）。
- * 返ってきたテキストは通常のテキスト入力パイプラインに渡す。
- */
 export async function callClaudeOcr(
   imageBase64: string,
   mediaType: ImageMediaType,
@@ -104,10 +124,6 @@ export async function callClaudeOcr(
   ]);
 }
 
-/**
- * Vision 入力（画像 + 補足テキスト）で Claude を呼び出す。
- * imageBase64 は "data:" プレフィクスなしの純粋な Base64 文字列。
- */
 export async function callClaudeVision(
   systemPrompt: string,
   imageBase64: string,

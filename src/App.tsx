@@ -154,7 +154,9 @@ function App() {
         </button>
       </header>
 
-      <main className="app__main">{renderMain()}</main>
+      <main className="app__main">
+        {renderMain()}
+      </main>
 
       {!isResearchPage && <DisclaimerBanner />}
     </div>

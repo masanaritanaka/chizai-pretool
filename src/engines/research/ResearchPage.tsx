@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BackButton } from '../../components/BackButton';
 import { DisclaimerBanner, DISCLAIMER_TEXT } from '../../components/DisclaimerBanner';
+import { LoadingBar } from '../../components/LoadingBar';
 import type { ImageMediaType } from '../../lib/claude';
 import { callClaude, callClaudeOcr, callClaudeVision, isClaudeError } from '../../lib/claude';
 import { invoke } from '@tauri-apps/api/core';
@@ -16,17 +17,17 @@ import {
 import { FIELD_LABELS, type StructuredMemo } from './types';
 
 const LAW_DOMAIN_COLORS: Record<string, string> = {
-  特許: '#2563EB', 商標: '#7C3AED', 意匠: '#DB2877',
+  特許: '#2563EB', 商標: '#7C3AED', 意匠: '#DB2777',
   実用新案: '#059669', 契約: '#D97706',
 };
 
 const INPUT_PLACEHOLDER: Record<number, string> = {
-  1: '商標候補のネーミングを入力してください。\n業種・商品/役務の概要も書くと精度が上がります。\nまたはファイル（txt/pdf/画像など）をドロップ。',
-  2: '商標候補と指定商品・役務の概要を入力してください。\nまたはファイルをドロップ。',
-  3: '特許文書テキスト（クレーム・要約・明細書）を貼り付けてください。\nJ-PlatPat からコピーするか PDF をドロップ。',
-  4: 'アイデアや技術構想を記述してください。\nまたはメモ・ドキュメントをドロップ。',
-  5: '意匠・UIの画像をドロップしてください。\n補足説明があれば画像ドロップ後に入力できます。',
-  9: '契約書・提案書のテキストを貼り付けてください。\nPDF / DOCX / XLSX / 画像をドロップ可。',
+  1: '商標にしたい社名・商品名を入力してください。\n業種や商品・サービスの概要もあると精度が上がります。\nまたはファイルをドロップして読み込むこともできます。',
+  2: '商標候補と、登録したい商品・サービスの概要を入力してください。\nまたはファイルをドロップ。',
+  3: '特許文書のテキスト（クレーム・要約・説明文）を貼り付けてください。\nJ-PlatPat からコピーするか、PDFをドロップしてください。',
+  4: '自社のアイデアや技術的な構想を自由に書いてください。\nメモやドキュメントをドロップしても読み込めます。',
+  5: '確認したい意匠やUI画面の画像をドロップしてください。\n補足の説明は画像を選んだ後に入力できます。',
+  9: '確認したい契約書や提案書のテキストを貼り付けてください。\nPDF / Word / Excel / 画像ファイルもドロップ対応です。',
 };
 
 function emptyMemo(): StructuredMemo {
@@ -48,7 +49,6 @@ type SubmitState =
 
 export function ResearchPage({ preset, onBack }: Props) {
   const [textInput, setTextInput] = useState('');
-  // vision モード用の画像状態
   const [visionImage, setVisionImage] = useState<ImageResult | null>(null);
   const [visionDesc, setVisionDesc] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
@@ -61,13 +61,16 @@ export function ResearchPage({ preset, onBack }: Props) {
   const labels = FIELD_LABELS[preset.id] ?? FIELD_LABELS[4];
   const isVisionPreset = preset.imageMode === 'vision';
 
-  // ── ファイル処理 ─────────────────────────────────────────────────────────────
+  // ── ファイル処理 ──────────────────────────────────────────────────────────────
+
+  // handleFile は毎レンダーで再生成されるため ref で最新版を保持（Tauri D&D クロージャの stale 防止）
+  const handleFileRef = useRef<(file: File) => Promise<void>>(null as unknown as (file: File) => Promise<void>);
 
   async function handleFile(file: File) {
     setIngestError(null);
 
     if (!isAcceptedFile(file)) {
-      setIngestError(`非対応形式です（${file.name}）。対応: txt / md / html / pdf / docx / xlsx / jpg / png / gif / webp`);
+      setIngestError(`対応していないファイル形式です（${file.name}）。対応: txt / md / html / pdf / docx / xlsx / jpg / png / gif / webp`);
       return;
     }
 
@@ -93,29 +96,27 @@ export function ResearchPage({ preset, onBack }: Props) {
         setVisionImage(result);
         setState({ status: 'idle' });
       } else if (mode === 'ocr') {
-        // Claude Vision で文字起こし → テキストパイプラインに合流
         setState({ status: 'ocr', fileName: file.name });
         try {
           const ocrText = await callClaudeOcr(result.base64, result.mediaType as ImageMediaType);
           setTextInput(prev =>
             prev.trim()
-              ? `${prev}\n\n[画像OCR: ${file.name}]\n${ocrText}`
-              : `[画像OCR: ${file.name}]\n${ocrText}`,
+              ? `${prev}\n\n[画像から読み取り: ${file.name}]\n${ocrText}`
+              : `[画像から読み取り: ${file.name}]\n${ocrText}`,
           );
           setState({ status: 'idle' });
         } catch (e) {
           setState({ status: 'idle' });
           if (isClaudeError(e)) setIngestError(e.message);
-          else setIngestError('OCRに失敗しました。テキストを直接貼り付けてください。');
+          else setIngestError('画像の文字読み取りに失敗しました。テキストを直接貼り付けてください。');
         }
       } else {
         setState({ status: 'idle' });
-        setIngestError('このプリセットは画像入力に対応していません。テキストファイルを使用してください。');
+        setIngestError('このメニューは画像入力に対応していません。テキストファイルを使用してください。');
       }
       return;
     }
 
-    // テキスト取り込み
     setTextInput(prev =>
       prev.trim()
         ? `${prev}\n\n[${file.name}]\n${result.text}`
@@ -124,10 +125,17 @@ export function ResearchPage({ preset, onBack }: Props) {
     setState({ status: 'idle' });
   }
 
-  // ── Tauri Finder D&D（onDragDropEvent 経由） ──────────────────────────────────
+  // handleFile ref を毎レンダー後に最新に更新
+  useEffect(() => {
+    handleFileRef.current = handleFile;
+  });
+
+  // ── Tauri Finder D&D ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
+
     getCurrentWebviewWindow().onDragDropEvent(async (event) => {
       const { type } = event.payload;
       if (type === 'enter' || type === 'over') {
@@ -141,22 +149,28 @@ export function ResearchPage({ preset, onBack }: Props) {
         const path = paths[0];
         const filename = path.split('/').pop() || path.split('\\').pop() || path;
         try {
-          // Rust コマンド経由でファイルバイト列を取得（scope 制約なし）
           const bytes = await invoke<number[]>('read_dropped_file', { path });
           const uint8 = new Uint8Array(bytes);
           const blob = new Blob([uint8]);
           const file = new File([blob], filename);
-          await handleFile(file);
+          await handleFileRef.current(file);
         } catch (e) {
-          setIngestError(`Finder からのファイル読み込みエラー: ${String(e).slice(0, 120)}`);
+          setIngestError(`ファイルの読み込みに失敗しました: ${String(e).slice(0, 120)}`);
         }
       }
-    }).then(fn => { unlisten = fn; });
-    return () => { unlisten?.(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preset.id]);
+    }).then(fn => {
+      // cancelled が true なら既にアンマウント済み → 即解除
+      if (cancelled) fn(); else unlisten = fn;
+    });
 
-  // ── Web D&D（テキストエリア内ドロップ / ブラウザ経由） ─────────────────────────
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  // preset.id が変わった時だけ再登録
+  }, [preset.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Web D&D ──────────────────────────────────────────────────────────────────
 
   function onDragOver(e: React.DragEvent) { e.preventDefault(); setIsDragOver(true); }
   function onDragLeave() { setIsDragOver(false); }
@@ -167,7 +181,7 @@ export function ResearchPage({ preset, onBack }: Props) {
     if (file) handleFile(file);
   }
 
-  // ── 送信 ─────────────────────────────────────────────────────────────────────
+  // ── 送信 ──────────────────────────────────────────────────────────────────────
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -227,10 +241,16 @@ export function ResearchPage({ preset, onBack }: Props) {
       : [];
 
   function busyLabel() {
-    if (state.status === 'extracting') return `⏳ 抽出中… (${state.fileName})`;
-    if (state.status === 'ocr') return `⏳ 文字起こし中… (${state.fileName})`;
-    if (state.status === 'calling') return '⏳ 分析中…';
+    if (state.status === 'extracting') return 'ファイルを読み込み中…';
+    if (state.status === 'ocr') return '画像を読み取り中…';
+    if (state.status === 'calling') return 'AIが分析中…';
     return '分析する';
+  }
+
+  function loadingBarLabel() {
+    if (state.status === 'extracting') return `ファイルを読み込み中… (${state.fileName})`;
+    if (state.status === 'ocr') return `画像から文字を読み取り中… (${state.fileName})`;
+    return 'AIが分析しています。少々お待ちください…';
   }
 
   return (
@@ -253,7 +273,6 @@ export function ResearchPage({ preset, onBack }: Props) {
       {/* 入力フォーム */}
       <form className="research-page__form" onSubmit={handleSubmit}>
 
-        {/* vision モード: 画像プレビュー */}
         {isVisionPreset && visionImage && (
           <div className="vision-preview-wrap">
             <img src={visionImage.previewUrl} alt="アップロード画像" className="vision-preview-img" />
@@ -263,7 +282,6 @@ export function ResearchPage({ preset, onBack }: Props) {
           </div>
         )}
 
-        {/* テキストエリア（全プリセット共通 D&D ゾーン） */}
         {(!isVisionPreset || visionImage) && (
           <div
             className={`textarea-drop-zone${isDragOver ? ' textarea-drop-zone--over' : ''}`}
@@ -282,13 +300,12 @@ export function ResearchPage({ preset, onBack }: Props) {
             />
             {isDragOver && (
               <div className="drop-overlay">
-                ファイルをドロップ
+                ここにドロップしてください
               </div>
             )}
           </div>
         )}
 
-        {/* vision モードで画像未選択時のドロップゾーン */}
         {isVisionPreset && !visionImage && (
           <div
             className={`image-drop-zone${isDragOver ? ' image-drop-zone--over' : ''}`}
@@ -299,13 +316,12 @@ export function ResearchPage({ preset, onBack }: Props) {
           >
             <div className="image-drop-zone__placeholder">
               <span className="image-drop-zone__icon">🖼</span>
-              <p>意匠・UI の画像をドラッグ&ドロップ、またはクリックして選択</p>
+              <p>画像をドラッグ&ドロップ、またはクリックして選択</p>
               <p className="image-drop-zone__hint">JPEG / PNG / GIF / WebP ・5MB 以下</p>
             </div>
           </div>
         )}
 
-        {/* ファイル選択ボタン + エラー */}
         <div className="file-upload-row">
           <input
             ref={fileInputRef}
@@ -320,32 +336,45 @@ export function ResearchPage({ preset, onBack }: Props) {
             className={`file-upload-btn${isBusy ? ' file-upload-btn--loading' : ''}`}
           >
             📄 ファイルを選択
-            <span className="file-upload-hint">txt/md/html/pdf/docx/xlsx/画像</span>
+            <span className="file-upload-hint">txt / pdf / Word / Excel / 画像</span>
           </label>
           {ingestError && <span className="upload-error">{ingestError}</span>}
         </div>
 
         <button
           type="submit"
-          className="research-page__submit"
+          className={`research-page__submit${isBusy ? ' research-page__submit--busy' : ''}`}
           disabled={!canSubmit}
           style={{ '--cluster-color': color } as React.CSSProperties}
         >
+          {isBusy && <span className="btn-spinner" style={{ borderTopColor: '#fff' }} />}
           {busyLabel()}
         </button>
       </form>
+
+      {/* ローディングバー */}
+      {isBusy && (
+        <LoadingBar label={loadingBarLabel()} color={color} />
+      )}
 
       {/* エラー */}
       {state.status === 'error' && (
         <div className={`research-error research-error--${state.errorType}`}>
           <strong>
-            {state.errorType === 'no_key' && '⚠ APIキー未設定'}
-            {state.errorType === 'network' && '⚠ ネットワークエラー'}
-            {state.errorType === 'rate_limit' && '⚠ レート制限'}
-            {state.errorType === 'api_error' && '⚠ APIエラー'}
-            {state.errorType === 'unknown' && '⚠ エラー'}
+            {state.errorType === 'no_key'     && '⚠ APIキーが設定されていません'}
+            {state.errorType === 'network'    && '⚠ 接続エラーが発生しました'}
+            {state.errorType === 'auth'       && '⚠ APIキーが正しくありません'}
+            {state.errorType === 'billing'    && '⚠ 利用残高が不足しています'}
+            {state.errorType === 'rate_limit' && '⚠ リクエスト数の上限に達しました'}
+            {state.errorType === 'api_error'  && '⚠ AI応答エラーが発生しました'}
+            {state.errorType === 'unknown'    && '⚠ エラーが発生しました'}
           </strong>
           <p>{state.message}</p>
+          {state.errorType === 'billing' && (
+            <p className="research-error__action">
+              console.anthropic.com にログインし、Billing から残高を追加すると再開できます。
+            </p>
+          )}
         </div>
       )}
 
@@ -357,31 +386,31 @@ export function ResearchPage({ preset, onBack }: Props) {
         </div>
       )}
 
-      {/* 構造化メモ */}
+      {/* 調査メモ */}
       {state.status === 'done' && !state.rawText && (
         <>
           <div className="research-card">
-            <h2 className="research-card__heading" style={{ color }}>構造化メモ</h2>
+            <h2 className="research-card__heading" style={{ color }}>調査メモ</h2>
             <dl className="memo-dl">
               <dt>{labels.technicalField}</dt><dd>{state.memo.technicalField}</dd>
               <dt>{labels.problem}</dt><dd>{state.memo.problem}</dd>
               <dt>{labels.solution}</dt><dd>{state.memo.solution}</dd>
               {state.memo.components.length > 0 && (<>
-                <dt>構成要素</dt>
+                <dt>主な構成要素</dt>
                 <dd><ul className="memo-list">{state.memo.components.map((c, i) => <li key={i}>{c}</li>)}</ul></dd>
               </>)}
               {state.memo.synonymsAndEnglish.length > 0 && (<>
-                <dt>類似語・英語表現</dt>
+                <dt>関連キーワード・英語表現</dt>
                 <dd><div className="memo-tags">{state.memo.synonymsAndEnglish.map((s, i) => <span key={i} className="memo-tag">{s}</span>)}</div></dd>
               </>)}
             </dl>
             <div className="memo-risk">
-              <strong>危険度所感</strong>
+              <strong>リスク判定</strong>
               <p>{state.memo.riskAssessment}</p>
             </div>
             {state.memo.expertQuestions.length > 0 && (
               <div className="memo-expert">
-                <strong>専門家に確認すべき論点</strong>
+                <strong>弁理士に確認すべきポイント</strong>
                 <ol>{state.memo.expertQuestions.map((q, i) => <li key={i}>{q}</li>)}</ol>
               </div>
             )}
@@ -389,8 +418,8 @@ export function ResearchPage({ preset, onBack }: Props) {
 
           {jplatpatLinks.length > 0 && (
             <div className="research-card">
-              <h2 className="research-card__heading" style={{ color }}>J-PlatPat 検索</h2>
-              <p className="jplatpat-hint">下の検索式をコピーして J-PlatPat の式入力欄に貼り付けてください。</p>
+              <h2 className="research-card__heading" style={{ color }}>特許庁サイトで検索する</h2>
+              <p className="jplatpat-hint">下のキーワードをコピーして、特許庁の無料検索サイト（J-PlatPat）に貼り付けてください。</p>
               {jplatpatLinks.map(link => (
                 <div key={link.domain} className="jplatpat-block">
                   <div className="jplatpat-block__label">{link.label}</div>
@@ -403,7 +432,7 @@ export function ResearchPage({ preset, onBack }: Props) {
                     )}
                   </div>
                   <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
-                    J-PlatPat を開く →
+                    特許庁の無料サイトを開く →
                   </button>
                 </div>
               ))}

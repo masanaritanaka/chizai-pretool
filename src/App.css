@@ -134,22 +134,26 @@
   border-radius: var(--radius);
   background: var(--card);
   cursor: pointer;
-  overflow: hidden;
+  /* overflow: hidden は photo-wrap 側で対応。tooltip が card 外に出られるよう visible にする */
+  overflow: visible;
+  position: relative;
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 .preset-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0,0,0,0.10);
   border-color: #C7CAD0;
+  z-index: 20;
 }
 
-/* 写真エリア */
+/* 写真エリア — card の overflow: visible に対して、上角を個別にクリップ */
 .preset-card__photo-wrap {
   position: relative;
   width: 100%;
   height: 110px;
   background: #D1D5DB;
   overflow: hidden;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .preset-card__photo {
   width: 100%;
@@ -329,6 +333,14 @@
 .research-error--rate_limit { border-color: #DDD6FE; background: #F5F3FF; color: #4C1D95; }
 .research-error strong { display: block; margin-bottom: 0.35rem; font-size: 0.92rem; }
 .research-error p { margin: 0; font-size: 0.88rem; }
+.research-error p + p { margin-top: 0.35rem; }
+.research-error__action {
+  margin-top: 0.4rem !important;
+  padding-top: 0.4rem;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  font-size: 0.82rem !important;
+  font-weight: 500;
+}
 
 /* Result cards */
 .research-card {
@@ -1112,3 +1124,151 @@
   display: flex; flex-direction: column; gap: 0.35rem;
 }
 .watch-expert-q__list li { font-size: 0.85rem; }
+
+/* ════════════════════════════════════════════
+   ホバーツールチップ（preset-card[data-tip]）
+   ════════════════════════════════════════════ */
+
+/* ツールチップ本体 */
+.preset-card[data-tip]::before {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 230px;
+  padding: 0.6rem 0.85rem;
+  background: rgba(15, 17, 26, 0.93);
+  color: #F3F4F6;
+  font-size: 0.75rem;
+  line-height: 1.55;
+  font-weight: 400;
+  border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  white-space: normal;
+  text-align: left;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+/* ツールチップ三角 */
+.preset-card[data-tip]::after {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+  border-top-color: rgba(15, 17, 26, 0.93);
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.preset-card[data-tip]:hover::before,
+.preset-card[data-tip]:hover::after {
+  opacity: 1;
+}
+
+/* グリッドの先頭行ではツールチップを下に出す（画面外に出ないように） */
+.cluster__grid .preset-card:nth-child(-n+3)[data-tip]::before {
+  bottom: auto;
+  top: calc(100% + 10px);
+}
+.cluster__grid .preset-card:nth-child(-n+3)[data-tip]::after {
+  bottom: auto;
+  top: calc(100% + 3px);
+  border-top-color: transparent;
+  border-bottom-color: rgba(15, 17, 26, 0.93);
+}
+
+/* ════════════════════════════════════════════
+   ローディングバー (LoadingBar コンポーネント)
+   ════════════════════════════════════════════ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-bar-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.loading-bar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.loading-bar-spinner {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(79, 70, 229, 0.2);
+  border-top-color: #4F46E5; /* overridden inline */
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.loading-bar-label {
+  flex: 1;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.loading-bar-pct {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 2.8rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.loading-bar-track {
+  height: 6px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #4F46E5; /* overridden inline */
+  transition: width 0.35s ease;
+}
+
+/* ════════════════════════════════════════════
+   ボタン内スピナー
+   ════════════════════════════════════════════ */
+
+.btn-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: -2px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+/* 送信ボタン — ローディング中は flex にしてスピナーを並べる */
+.research-page__submit--busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}

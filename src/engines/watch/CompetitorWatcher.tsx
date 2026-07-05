@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BackButton } from '../../components/BackButton';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
+import { LoadingBar } from '../../components/LoadingBar';
 import { callClaude } from '../../lib/claude';
 import { openJplatpat } from '../../lib/jplatpat';
 import { createWatchTarget, deleteWatchTarget, listWatchTargets, markChecked } from './db';
@@ -168,9 +169,14 @@ export function CompetitorWatcher({ onBack }: Props) {
             onClick={handleGenerate}
             disabled={generating || !targetName.trim()}
           >
-            {generating ? '検索式を生成中…' : '検索式を生成'}
+            {generating && <span className="btn-spinner" style={{ borderTopColor: '#fff' }} />}
+            {generating ? 'AIが検索式を作成中…' : '検索式を作成する'}
           </button>
         </div>
+
+        {generating && (
+          <LoadingBar label="AIが検索式を作成しています…" color={CLUSTER_COLOR} />
+        )}
 
         {genError && <p className="watch-error">{genError}</p>}
 

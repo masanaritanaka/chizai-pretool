@@ -14,9 +14,9 @@ interface HomeProps {
 }
 
 const clusterDescriptions: Record<string, string> = {
-  調べる: '入力した情報を構造化し、検索式と論点をまとめます',
-  監視する: '監視したい対象の検索式を生成し、J-PlatPat で確認します',
-  管理する: '出願・登録のステータスや期限をローカルで管理します',
+  調べる: '社名・アイデア・契約書などを入力すると、AIがリスクや論点をわかりやすくまとめます',
+  監視する: '競合他社の出願動向を把握するための検索キーワードを作成・管理します',
+  管理する: '出願・更新の期限やアイデアのメモを、自分のPCだけで安全に管理します',
 };
 
 export function Home({ onSelectPreset, nearDeadlineCount = 0 }: HomeProps) {
@@ -40,6 +40,7 @@ export function Home({ onSelectPreset, nearDeadlineCount = 0 }: HomeProps) {
                 type="button"
                 className="preset-card"
                 onClick={() => onSelectPreset(preset)}
+                data-tip={preset.description}
               >
                 <div className="preset-card__photo-wrap">
                   <img
