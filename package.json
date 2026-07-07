@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "tauri": "tauri",
-    "fetch-photos": "tsx scripts/fetch-photos.ts"
+    "fetch-photos": "tsx scripts/fetch-photos.ts",
+    "sign:dev": "bash scripts/sign-dev.sh"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -21,7 +22,6 @@
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.4",
-    "@tauri-apps/plugin-http": "^2.5.9",
     "@tauri-apps/plugin-notification": "^2.3.3",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-sql": "^2.4.0",

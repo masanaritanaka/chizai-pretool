@@ -233,6 +233,11 @@
 }
 .settings__status { font-size: 0.88rem; }
 .settings__error { color: #B91C1C; }
+.settings__masked-key {
+  font-family: monospace; font-size: 0.88em;
+  background: var(--bg); padding: 0.1em 0.4em; border-radius: 3px;
+  border: 1px solid var(--border);
+}
 
 /* ════════════════════════════════════════════
    Preset placeholder (unimplemented)

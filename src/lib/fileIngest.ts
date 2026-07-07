@@ -81,7 +81,7 @@ async function extractPdfText(file: File): Promise<string> {
   const joined = Array.isArray(text) ? (text as string[]).join('\n\n') : String(text);
   if (!joined.trim() || joined.trim().length < 30) {
     throw new Error(
-      `テキストレイヤーが見つかりません（${totalPages}ページ）。スキャン PDF の場合は画像ファイルとして読み込んでください。`,
+      `テキストレイヤーが見つかりません（${totalPages}ページ）。本文をコピーして貼り付けるか、該当ページのスクリーンショットを画像として読み込んでください。`,
     );
   }
   return joined.trim();

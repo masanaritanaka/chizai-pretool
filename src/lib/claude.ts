@@ -72,16 +72,22 @@ async function post(systemPrompt: string, userContent: UserContent): Promise<str
           'APIキーが無効です。設定画面で正しいキーを確認・再登録してください。',
         );
       }
-      if (status === 402 || status === 529) {
+      if (status === 402) {
         throw makeError(
           'billing',
-          `残高不足またはサービス一時停止中です（${status}）。`,
+          '残高不足または支払い情報が必要です（402）。',
         );
       }
       if (status === 429) {
         throw makeError(
           'rate_limit',
           'しばらく待ってから再試行してください（目安: 1〜2分）。',
+        );
+      }
+      if (status === 529) {
+        throw makeError(
+          'rate_limit',
+          'AIサービスが混雑しています（529）。しばらく待ってから再試行してください。',
         );
       }
 

@@ -14,10 +14,24 @@ pub fn save_api_key(key: String) -> Result<(), String> {
   Ok(())
 }
 
+/// キーチェーンに保存済みのキーをマスクして返す。
+/// フロントにキー全文を渡さないためのセキュリティ境界。
+/// 戻り値形式: "sk-ant-...XXXX"（末尾4文字のみ表示）
 #[tauri::command]
-pub fn get_api_key() -> Result<Option<String>, String> {
+pub fn get_api_key_masked() -> Result<Option<String>, String> {
   match entry()?.get_password() {
-    Ok(password) => Ok(Some(password)),
+    Ok(password) => {
+      let trimmed = password.trim();
+      if trimmed.is_empty() {
+        return Ok(None);
+      }
+      let suffix = if trimmed.len() >= 4 {
+        &trimmed[trimmed.len() - 4..]
+      } else {
+        trimmed
+      };
+      Ok(Some(format!("sk-ant-...{suffix}")))
+    }
     Err(keyring::Error::NoEntry) => Ok(None),
     Err(e) => Err(e.to_string()),
   }
@@ -40,12 +54,14 @@ mod tests {
   #[test]
   fn round_trips_through_the_os_keychain() {
     delete_api_key().unwrap();
-    assert_eq!(get_api_key().unwrap(), None);
+    assert_eq!(get_api_key_masked().unwrap(), None);
 
     save_api_key("sk-ant-test-12345".to_string()).unwrap();
-    assert_eq!(get_api_key().unwrap(), Some("sk-ant-test-12345".to_string()));
+    let masked = get_api_key_masked().unwrap().expect("key should be present");
+    assert!(masked.starts_with("sk-ant-..."), "expected masked prefix: {masked}");
+    assert!(masked.ends_with("2345"), "expected last-4 suffix: {masked}");
 
     delete_api_key().unwrap();
-    assert_eq!(get_api_key().unwrap(), None);
+    assert_eq!(get_api_key_masked().unwrap(), None);
   }
 }

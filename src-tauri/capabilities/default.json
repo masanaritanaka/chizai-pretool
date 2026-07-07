@@ -8,13 +8,12 @@
   "permissions": [
     "core:default",
     {
-      "identifier": "http:allow-fetch",
-      "allow": [{ "url": "https://api.anthropic.com/**" }]
+      "identifier": "shell:allow-open",
+      "allow": [
+        "https://www.j-platpat.inpit.go.jp/**",
+        "https://console.anthropic.com/**"
+      ]
     },
-    "http:allow-fetch-send",
-    "http:allow-fetch-read-body",
-    "http:allow-fetch-cancel",
-    "shell:allow-open",
     "sql:default",
     "notification:default"
   ]

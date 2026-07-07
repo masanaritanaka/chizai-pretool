@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
-import { deleteApiKey, getApiKey, saveApiKey } from '../lib/keychain';
+import { deleteApiKey, getApiKeyMasked, saveApiKey } from '../lib/keychain';
 
 type Status = 'loading' | 'idle' | 'saving' | 'error';
 
@@ -50,16 +50,16 @@ function ApiGuideModal({ onClose }: { onClose: () => void }) {
 
 export function Settings({ thresholdDays, onThresholdChange }: Props) {
   const [keyInput, setKeyInput] = useState('');
-  const [hasStoredKey, setHasStoredKey] = useState(false);
+  const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [thresholdInput, setThresholdInput] = useState(String(thresholdDays));
   const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
-    getApiKey()
-      .then((key) => {
-        setHasStoredKey(key !== null);
+    getApiKeyMasked()
+      .then((masked) => {
+        setMaskedKey(masked);
         setStatus('idle');
       })
       .catch((err) => {
@@ -74,7 +74,9 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
     try {
       await saveApiKey(keyInput.trim());
       setKeyInput('');
-      setHasStoredKey(true);
+      // キー全文は JS に保持しない。マスク版を再取得して表示のみ更新
+      const masked = await getApiKeyMasked();
+      setMaskedKey(masked);
       setStatus('idle');
     } catch (err) {
       setErrorMessage(String(err));
@@ -86,7 +88,7 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
     setStatus('saving');
     try {
       await deleteApiKey();
-      setHasStoredKey(false);
+      setMaskedKey(null);
       setStatus('idle');
     } catch (err) {
       setErrorMessage(String(err));
@@ -127,7 +129,10 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
         {status !== 'loading' && (
           <>
             <p className="settings__status">
-              現在のキー: {hasStoredKey ? '保存済み ✓' : '未設定'}
+              現在のキー:{' '}
+              {maskedKey
+                ? <><code className="settings__masked-key">{maskedKey}</code> ✓</>
+                : '未設定'}
             </p>
             <div className="settings__form">
               <input
@@ -140,7 +145,7 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
               <button type="button" onClick={handleSave} disabled={!keyInput.trim() || status === 'saving'}>
                 保存
               </button>
-              {hasStoredKey && (
+              {maskedKey && (
                 <button type="button" onClick={handleDelete} disabled={status === 'saving'}>
                   削除
                 </button>

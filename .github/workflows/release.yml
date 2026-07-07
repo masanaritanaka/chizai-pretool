@@ -39,6 +39,9 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Apple Developer 証明書がある場合は以下を secrets に追加して正式署名・公証を行う:
+          # APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
+          # APPLE_ID, APPLE_TEAM_ID, APPLE_APP_SPECIFIC_PASSWORD
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'chizai-pretool ${{ github.ref_name }}'
@@ -49,3 +52,16 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      # Apple Developer 証明書なしの ad-hoc 署名 (macOS)
+      # 注意: Gatekeeper / Notarization を通過しないため、ユーザーは右クリック→開く が必要。
+      #       正規配布には APPLE_SIGNING_IDENTITY に Developer ID Application を設定すること。
+      - name: ad-hoc codesign (macOS, no Apple cert)
+        if: matrix.platform == 'macos-latest'
+        run: |
+          BINARY="src-tauri/target/universal-apple-darwin/release/chizai-pretool"
+          if [[ -f "$BINARY" ]]; then
+            codesign --force --sign - "$BINARY" && echo "signed: $BINARY" || echo "codesign failed (non-fatal)"
+          else
+            echo "binary not found at $BINARY — tauri-action may have already packaged it"
+          fi

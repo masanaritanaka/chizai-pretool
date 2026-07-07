@@ -1,12 +1,12 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "chizai-pretool",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "identifier": "com.chizaipretool.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "bash scripts/sign-dev.sh; npm run dev",
     "beforeBuildCommand": "npm run build"
   },
   "app": {
