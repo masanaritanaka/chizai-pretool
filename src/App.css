@@ -467,6 +467,54 @@
 }
 
 /* ════════════════════════════════════════════
+   Preset 03: 特許文書をやさしく読み解く
+   ════════════════════════════════════════════ */
+.patent-read-section {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.patent-read-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+.patent-read-section__label {
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em;
+  margin-bottom: 0.5rem;
+}
+
+.patent-read-section__body {
+  margin: 0; font-size: 0.92rem; line-height: 1.75; color: var(--text);
+}
+
+/* 要点マップ table */
+.patent-term-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 0.86rem; margin-top: 0.25rem;
+}
+.patent-term-table th {
+  text-align: left; padding: 0.4rem 0.7rem;
+  background: var(--bg); border: 1px solid var(--border);
+  font-weight: 600; font-size: 0.78rem; color: var(--text-muted);
+}
+.patent-term-table td {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border); vertical-align: top;
+  line-height: 1.55;
+}
+.patent-term-table__original {
+  font-weight: 600; white-space: nowrap;
+  color: var(--text); background: var(--bg);
+  width: 40%;
+}
+
+/* 経営判断の問い */
+.patent-read-list {
+  margin: 0.25rem 0 0; padding-left: 1.4rem;
+  display: flex; flex-direction: column; gap: 0.55rem;
+}
+.patent-read-list li { font-size: 0.9rem; line-height: 1.6; }
+
+/* ════════════════════════════════════════════
    Disclaimer banner
    ════════════════════════════════════════════ */
 .disclaimer-banner {

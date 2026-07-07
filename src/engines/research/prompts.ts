@@ -6,6 +6,7 @@ const DISCLAIMER = `
 最終判断は必ず弁理士・知財部に委ねるよう促してください。
 `.trim();
 
+// ── 標準プリセット用スキーマ (preset 01/02/04/05/09) ─────────────────────────
 const JSON_SCHEMA = `
 出力は以下の JSON スキーマに厳密に従ってください。JSON 以外の文字（マークダウン記号・コードブロック等）を含めないこと。
 
@@ -21,6 +22,21 @@ const JSON_SCHEMA = `
 }
 `.trim();
 
+// ── Preset 03 専用スキーマ ────────────────────────────────────────────────────
+const P03_JSON_SCHEMA = `
+出力は以下の JSON スキーマに厳密に従ってください。JSON 以外の文字（マークダウン記号・コードブロック等）を含めないこと。
+
+{
+  "summary": "string（2〜3文、専門用語なし）",
+  "usageScenes": "string（実生活・実務での想像しやすい適用シーン）",
+  "novelty": "string（従来との違い・技術的優位性を平易に）",
+  "termMap": [{"term": "原文語（string）", "plain": "平易な言い換え（string）"}],
+  "businessQuestions": ["観点1（string）", "観点2（string）", "観点3（string）"],
+  "whenToConsult": ["もし〜なら相談を検討（string、3項目以内）"]
+}
+`.trim();
+
+// ── プリセット別プロンプト ────────────────────────────────────────────────────
 const PRESET_INSTRUCTIONS: Record<number, string> = {
   1: `
 【タスク: 商標ネーミング危険度チェッカー】
@@ -51,17 +67,21 @@ const PRESET_INSTRUCTIONS: Record<number, string> = {
 `.trim(),
 
   3: `
-【タスク: 特許の素人向け翻訳】
-入力された特許文書テキスト（クレーム・要約・明細書の一部）を非専門家向けに構造化してください。
+【タスク: 特許文書をやさしく読み解く】
+入力された特許文書テキスト（保護範囲の記述・要約・明細書の一部）を、知財の専門知識がない事業担当者・エンジニアが理解できるように解説してください。
 
-- technicalField: 技術分野と想定されるIPC分類（例: G06F）
-- problem: 特許が解決しようとしている技術的課題
-- solution: 解決手段のポイント（クレーム1を平易に言い換え）
-- components: 独立クレームの主要構成要素リスト（技術用語を平易に言い換え）
-- synonymsAndEnglish: 専門用語の平易な日本語言い換え・英語表現
-- riskAssessment: 200文字以内で権利範囲の広さ・強さの素人的評価
-- expertQuestions: 技術者・弁理士に確認すべき事項（3〜5件）
-- searchKeywords: J-PlatPat先行技術検索用の日本語・英語キーワード
+【出力の注意事項】
+- 「クレーム」「請求項」などの専門語を使う場合は必ず平易語を並記する（例: 「保護範囲(クレーム)」「権利の要求範囲(請求項)」）
+- 「均等論」「新規性」「進歩性」などの法律・審査用語は使わない
+- 各項目は結論から書き始める。前置き・導入文で始めない
+- 数値限定（例: 「2Hz以上」）が登場する場合は、その数値が日常的に何を意味するかを添えること
+
+- summary: この特許が「何を」「どうやって」「何のために」実現するものか、専門用語なしの2〜3文で完結させること
+- usageScenes: 実生活・実務での想像しやすい適用シーン。具体的な製品・作業・状況を例示すること（例:「電動歯ブラシで、磨き方に合わせて振動が変わる仕組み」）
+- novelty: 「これまではこうだった / この特許ではこう変わった」の対比で技術的優位性を平易に説明すること
+- termMap: 文書中の重要語を「原文語 → 平易な言い換え」として5〜8語。単語の機械的分解ではなく、読み手の理解の橋渡しとして提示すること
+- businessQuestions: 「この技術は自社に関係あるか」「回避や差別化の余地はあるか」「ライセンスや協業の可能性はあるか」の3観点で、各1〜2文
+- whenToConsult: 「もし〜なら相談を検討」の形式で3項目以内。検討タイミングを具体的に
 `.trim(),
 
   4: `
@@ -109,7 +129,9 @@ const PRESET_INSTRUCTIONS: Record<number, string> = {
 
 export function buildSystemPrompt(preset: Preset): string {
   const instruction = PRESET_INSTRUCTIONS[preset.id] ?? '';
-  return [DISCLAIMER, '', instruction, '', JSON_SCHEMA].join('\n');
+  // Preset 03 は専用スキーマ。他プリセットは共通スキーマ。
+  const schema = preset.id === 3 ? P03_JSON_SCHEMA : JSON_SCHEMA;
+  return [DISCLAIMER, '', instruction, '', schema].join('\n');
 }
 
 /** テキスト入力プリセット用のユーザーメッセージを組み立てる */

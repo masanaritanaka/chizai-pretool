@@ -14,7 +14,7 @@ import {
   buildSystemPrompt, buildUserMessage,
   buildVisionSystemPrompt, buildVisionTextMessage,
 } from './prompts';
-import { FIELD_LABELS, type StructuredMemo } from './types';
+import { FIELD_LABELS, type PatentReadMemo, type StructuredMemo } from './types';
 
 const LAW_DOMAIN_COLORS: Record<string, string> = {
   特許: '#2563EB', 商標: '#7C3AED', 意匠: '#DB2777',
@@ -24,7 +24,7 @@ const LAW_DOMAIN_COLORS: Record<string, string> = {
 const INPUT_PLACEHOLDER: Record<number, string> = {
   1: '商標にしたい社名・商品名を入力してください。\n業種や商品・サービスの概要もあると精度が上がります。\nまたはファイルをドロップして読み込むこともできます。',
   2: '商標候補と、登録したい商品・サービスの概要を入力してください。\nまたはファイルをドロップ。',
-  3: '特許文書のテキスト（クレーム・要約・説明文）を貼り付けてください。\nJ-PlatPat からコピーするか、PDFをドロップしてください。',
+  3: '特許文書のテキスト（保護範囲の記述・要約・説明文）を貼り付けてください。\nJ-PlatPat からコピーするか、PDFをドロップしてください。\n図面・図表が含まれる画像もドロップで読み込めます。',
   4: '自社のアイデアや技術的な構想を自由に書いてください。\nメモやドキュメントをドロップしても読み込めます。',
   5: '確認したい意匠やUI画面の画像をドロップしてください。\n補足の説明は画像を選んだ後に入力できます。',
   9: '確認したい契約書や提案書のテキストを貼り付けてください。\nPDF / Word / Excel / 画像ファイルもドロップ対応です。',
@@ -33,6 +33,71 @@ const INPUT_PLACEHOLDER: Record<number, string> = {
 function emptyMemo(): StructuredMemo {
   return { technicalField: '', problem: '', solution: '', components: [], synonymsAndEnglish: [], riskAssessment: '', expertQuestions: [], searchKeywords: [] };
 }
+
+// ── Preset 03 専用カード ────────────────────────────────────────────────────
+
+function PatentReadCard({ memo, color }: { memo: PatentReadMemo; color: string }) {
+  return (
+    <div className="research-card">
+      <h2 className="research-card__heading" style={{ color }}>読み解き結果</h2>
+
+      <div className="patent-read-section">
+        <div className="patent-read-section__label">ひとことで言うと</div>
+        <p className="patent-read-section__body">{memo.summary}</p>
+      </div>
+
+      <div className="patent-read-section">
+        <div className="patent-read-section__label">どんな場面で使われる技術か</div>
+        <p className="patent-read-section__body">{memo.usageScenes}</p>
+      </div>
+
+      <div className="patent-read-section">
+        <div className="patent-read-section__label">従来との違い・新しさ</div>
+        <p className="patent-read-section__body">{memo.novelty}</p>
+      </div>
+
+      {memo.termMap && memo.termMap.length > 0 && (
+        <div className="patent-read-section">
+          <div className="patent-read-section__label">本文の要点マップ</div>
+          <table className="patent-term-table">
+            <thead>
+              <tr>
+                <th>原文の表現</th>
+                <th>わかりやすく言うと</th>
+              </tr>
+            </thead>
+            <tbody>
+              {memo.termMap.map((row, i) => (
+                <tr key={i}>
+                  <td className="patent-term-table__original">{row.term}</td>
+                  <td>{row.plain}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {memo.businessQuestions && memo.businessQuestions.length > 0 && (
+        <div className="patent-read-section">
+          <div className="patent-read-section__label">経営判断のための3つの問い</div>
+          <ol className="patent-read-list">
+            {memo.businessQuestions.map((q, i) => <li key={i}>{q}</li>)}
+          </ol>
+        </div>
+      )}
+
+      {memo.whenToConsult && memo.whenToConsult.length > 0 && (
+        <div className="memo-expert">
+          <strong>弁理士・専門家に相談すべきタイミング</strong>
+          <ol>{memo.whenToConsult.map((item, i) => <li key={i}>{item}</li>)}</ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Props / State ────────────────────────────────────────────────────────────
 
 interface Props {
   preset: Preset;
@@ -45,7 +110,10 @@ type SubmitState =
   | { status: 'ocr'; fileName: string }
   | { status: 'calling' }
   | { status: 'error'; message: string; errorType: string }
-  | { status: 'done'; memo: StructuredMemo; rawText?: string };
+  | { status: 'done'; memo: StructuredMemo; rawText?: string }
+  | { status: 'done_p03'; memo: PatentReadMemo };
+
+// ── Component ────────────────────────────────────────────────────────────────
 
 export function ResearchPage({ preset, onBack }: Props) {
   const [textInput, setTextInput] = useState('');
@@ -204,6 +272,20 @@ export function ResearchPage({ preset, onBack }: Props) {
         raw = await callClaude(buildSystemPrompt(preset), buildUserMessage(preset, textInput));
       }
 
+      // ── Preset 03 専用パーサー ──────────────────────────────────────────────
+      if (preset.id === 3) {
+        try {
+          const m = raw.match(/\{[\s\S]*\}/);
+          const parsed = JSON.parse(m ? m[0] : raw) as PatentReadMemo;
+          setState({ status: 'done_p03', memo: parsed });
+        } catch {
+          // JSON パース失敗 → 生テキストフォールバック
+          setState({ status: 'done', memo: emptyMemo(), rawText: raw });
+        }
+        return;
+      }
+
+      // ── 標準パーサー (preset 03 以外) ────────────────────────────────────
       let memo: StructuredMemo;
       try {
         memo = JSON.parse(raw) as StructuredMemo;
@@ -235,6 +317,7 @@ export function ResearchPage({ preset, onBack }: Props) {
   const isBusy = state.status === 'extracting' || state.status === 'ocr' || state.status === 'calling';
   const canSubmit = !isBusy && (textInput.trim().length > 0 || (isVisionPreset && !!visionImage));
 
+  // Preset 03 は searchKeywords を持たないため J-PlatPat リンクを表示しない
   const jplatpatLinks =
     state.status === 'done' && !state.rawText
       ? buildLinks(preset.lawDomains, state.memo.searchKeywords)
@@ -386,7 +469,15 @@ export function ResearchPage({ preset, onBack }: Props) {
         </div>
       )}
 
-      {/* 調査メモ */}
+      {/* Preset 03 専用レンダラー */}
+      {state.status === 'done_p03' && (
+        <>
+          <PatentReadCard memo={state.memo} color={color} />
+          <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
+        </>
+      )}
+
+      {/* 標準調査メモ (preset 03 以外) */}
       {state.status === 'done' && !state.rawText && (
         <>
           <div className="research-card">
