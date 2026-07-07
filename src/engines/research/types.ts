@@ -9,6 +9,20 @@ export interface StructuredMemo {
   searchKeywords: string[];
 }
 
+/** Preset 04 専用出力型: 自社アイデアの先行技術メモ化。 */
+export interface IdeaMemo04Output {
+  /** アイデアの核 — 何を・どうやって・誰のために (1〜2文) */
+  core: string;
+  /** 新規性の焦点 — 既存との違い (1〜3点) */
+  noveltyFocus: string;
+  /** 先行調査キーワード — 構成要素ごとに日本語と英語 */
+  keywords: { element: string; ja: string[]; en: string[] }[];
+  /** 差別化・回避設計の選択肢 (2〜3案) */
+  alternatives: string[];
+  /** 弁理士相談前チェックリスト (3〜5項目) */
+  preConsultChecklist: string[];
+}
+
 /** Preset 03 専用出力型。StructuredMemo とは完全に独立したスキーマ。 */
 export interface PatentReadMemo {
   /** ひとことで言うと — 専門用語なしの 2〜3 文 */

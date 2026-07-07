@@ -11,7 +11,8 @@
       "identifier": "shell:allow-open",
       "allow": [
         "https://www.j-platpat.inpit.go.jp/**",
-        "https://console.anthropic.com/**"
+        "https://console.anthropic.com/**",
+        "https://www.notion.so/**"
       ]
     },
     "sql:default",

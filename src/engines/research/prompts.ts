@@ -22,6 +22,25 @@ const JSON_SCHEMA = `
 }
 `.trim();
 
+// ── Preset 04 専用スキーマ ────────────────────────────────────────────────────
+const P04_JSON_SCHEMA = `
+出力は以下の JSON スキーマに厳密に従ってください。JSON 以外の文字（マークダウン記号・コードブロック等）を含めないこと。
+
+{
+  "core": "string（アイデアの核: 何を・どうやって・誰のために実現するか、1〜2文）",
+  "noveltyFocus": "string（新規性の焦点: 既存技術・製品との違いを1〜3点で端的に）",
+  "keywords": [
+    {
+      "element": "string（構成要素名）",
+      "ja": ["string（日本語キーワード）"],
+      "en": ["string（英語キーワード）"]
+    }
+  ],
+  "alternatives": ["string（差別化・回避設計の選択肢、2〜3案）"],
+  "preConsultChecklist": ["string（弁理士相談前チェックリスト、3〜5項目）"]
+}
+`.trim();
+
 // ── Preset 03 専用スキーマ ────────────────────────────────────────────────────
 const P03_JSON_SCHEMA = `
 出力は以下の JSON スキーマに厳密に従ってください。JSON 以外の文字（マークダウン記号・コードブロック等）を含めないこと。
@@ -88,14 +107,12 @@ const PRESET_INSTRUCTIONS: Record<number, string> = {
 【タスク: 自社アイデアの先行技術メモ化】
 入力されたアイデア・技術構想を先行技術調査のための構造化メモに変換してください。
 
-- technicalField: アイデアが属する技術分野とIPC分類候補
-- problem: アイデアが解決しようとしている技術的課題
-- solution: アイデアの技術的解決手段（出願クレームのコア要素）
-- components: アイデアの主要構成要素・新規性のポイント
-- synonymsAndEnglish: 先行技術検索に使える類義語・英語キーワード・IPC分類候補
-- riskAssessment: 200文字以内で先行技術との類似リスクの素人的評価
-- expertQuestions: 出願前に弁理士へ相談すべき事項（3〜5件）
-- searchKeywords: J-PlatPat先行技術検索用キーワード（上位概念・下位概念を含む）
+【出力の注意事項】
+- 「core」は「何を（対象）・どうやって（手段）・誰のために（目的）」の3要素を含む1〜2文
+- 「noveltyFocus」は「これまでは〜／このアイデアでは〜」の対比形式が望ましい
+- 「keywords」は構成要素ごとに分け、日本語・英語の両方で先行調査に使えるキーワードを挙げること
+- 「alternatives」は出願クレーム設計・権利範囲の差別化・権利回避設計の視点で2〜3案
+- 「preConsultChecklist」は弁理士相談前に自分で確認しておくべき事項（先行技術調査のヒント含む）
 `.trim(),
 
   5: `
@@ -129,8 +146,8 @@ const PRESET_INSTRUCTIONS: Record<number, string> = {
 
 export function buildSystemPrompt(preset: Preset): string {
   const instruction = PRESET_INSTRUCTIONS[preset.id] ?? '';
-  // Preset 03 は専用スキーマ。他プリセットは共通スキーマ。
-  const schema = preset.id === 3 ? P03_JSON_SCHEMA : JSON_SCHEMA;
+  // Preset 03 は PatentReadMemo スキーマ。Preset 04 は IdeaMemo04 スキーマ。他は共通スキーマ。
+  const schema = preset.id === 3 ? P03_JSON_SCHEMA : preset.id === 4 ? P04_JSON_SCHEMA : JSON_SCHEMA;
   return [DISCLAIMER, '', instruction, '', schema].join('\n');
 }
 

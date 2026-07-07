@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
 import { deleteApiKey, getApiKeyMasked, saveApiKey } from '../lib/keychain';
+import { deleteNotionToken, hasNotionToken, saveNotionToken, testNotionConnection } from '../lib/notion';
+import { getSettingValue, setSettingValue } from '../engines/manage/db';
 
 type Status = 'loading' | 'idle' | 'saving' | 'error';
 
@@ -55,6 +57,58 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
   const [errorMessage, setErrorMessage] = useState('');
   const [thresholdInput, setThresholdInput] = useState(String(thresholdDays));
   const [showGuide, setShowGuide] = useState(false);
+
+  // Notion
+  const [notionTokenInput, setNotionTokenInput] = useState('');
+  const [notionHasToken, setNotionHasToken] = useState(false);
+  const [notionDbId, setNotionDbId] = useState('');
+  const [notionDbIdInput, setNotionDbIdInput] = useState('');
+  const [notionTestResult, setNotionTestResult] = useState<string | null>(null);
+  const [notionTestError, setNotionTestError] = useState<string | null>(null);
+  const [notionSaving, setNotionSaving] = useState(false);
+
+  useEffect(() => {
+    hasNotionToken().then(setNotionHasToken).catch(() => {});
+    getSettingValue('notion_database_id').then(v => {
+      if (v) { setNotionDbId(v); setNotionDbIdInput(v); }
+    }).catch(() => {});
+  }, []);
+
+  async function handleSaveNotionToken() {
+    if (!notionTokenInput.trim()) return;
+    setNotionSaving(true);
+    try {
+      await saveNotionToken(notionTokenInput.trim());
+      setNotionTokenInput('');
+      setNotionHasToken(true);
+    } finally {
+      setNotionSaving(false);
+    }
+  }
+
+  async function handleDeleteNotionToken() {
+    await deleteNotionToken();
+    setNotionHasToken(false);
+    setNotionTestResult(null);
+    setNotionTestError(null);
+  }
+
+  async function handleTestNotion() {
+    setNotionTestResult(null);
+    setNotionTestError(null);
+    try {
+      const name = await testNotionConnection();
+      setNotionTestResult(`接続成功: ${name}`);
+    } catch (e) {
+      setNotionTestError(String(e));
+    }
+  }
+
+  async function handleSaveDbId() {
+    const v = notionDbIdInput.trim();
+    await setSettingValue('notion_database_id', v);
+    setNotionDbId(v);
+  }
 
   useEffect(() => {
     getApiKeyMasked()
@@ -177,6 +231,87 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
           </button>
         </div>
         <p className="settings__status">現在の設定: {thresholdDays}日前</p>
+      </section>
+
+      {/* ── 外部連携 ── */}
+      <section className="settings__section">
+        <h3>外部連携</h3>
+
+        {/* Notion */}
+        <div className="settings__integration-card">
+          <div className="settings__integration-header">
+            <strong>Notion</strong>
+            <span className="settings__integration-badge settings__integration-badge--notion">
+              {notionHasToken ? '設定済み' : '未設定'}
+            </span>
+          </div>
+          <p className="settings__hint">
+            アイデアメモ（プリセット04）の分析結果を Notion データベースへ送信できます。
+            インテグレーショントークン（<code>secret_...</code> または <code>ntn_...</code>）を登録してください。
+          </p>
+          <div className="settings__form">
+            <input
+              type="password"
+              placeholder="secret_... または ntn_..."
+              value={notionTokenInput}
+              onChange={e => setNotionTokenInput(e.target.value)}
+              autoComplete="off"
+            />
+            <button type="button" onClick={handleSaveNotionToken} disabled={!notionTokenInput.trim() || notionSaving}>
+              保存
+            </button>
+            {notionHasToken && (
+              <button type="button" onClick={handleDeleteNotionToken}>削除</button>
+            )}
+          </div>
+          {notionHasToken && (
+            <div className="settings__form" style={{ marginTop: '0.5rem' }}>
+              <button type="button" onClick={handleTestNotion} className="api-guide-btn">
+                接続テスト
+              </button>
+              {notionTestResult && <span className="settings__status" style={{ color: '#065F46' }}>{notionTestResult}</span>}
+              {notionTestError && <span className="settings__error">{notionTestError}</span>}
+            </div>
+          )}
+
+          {/* データベースID */}
+          <div className="settings__field" style={{ marginTop: '0.85rem' }}>
+            <label className="settings__field-label">
+              Notion データベース ID
+              {notionDbId && <span className="settings__status" style={{ marginLeft: '0.5rem' }}>✓ 設定済み</span>}
+            </label>
+            <p className="settings__hint" style={{ marginTop: 0 }}>
+              送信先 Notion データベースの ID（URL の 32 桁英数字部分）を入力してください。
+            </p>
+            <div className="settings__form">
+              <input
+                type="text"
+                placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                value={notionDbIdInput}
+                onChange={e => setNotionDbIdInput(e.target.value)}
+              />
+              <button type="button" onClick={handleSaveDbId} disabled={!notionDbIdInput.trim()}>
+                適用
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Google Docs — 準備中 */}
+        <div className="settings__integration-card settings__integration-card--disabled">
+          <div className="settings__integration-header">
+            <strong>Google Docs</strong>
+            <span className="settings__integration-badge settings__integration-badge--coming">
+              準備中
+            </span>
+          </div>
+          <p className="settings__hint">
+            Google Docs 連携は今後のアップデートで対応予定です。
+          </p>
+          <button type="button" disabled className="settings__disabled-btn">
+            Google Docs に送る（準備中）
+          </button>
+        </div>
       </section>
 
       {showGuide && <ApiGuideModal onClose={() => setShowGuide(false)} />}

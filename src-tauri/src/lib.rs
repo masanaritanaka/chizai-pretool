@@ -1,6 +1,7 @@
 mod keychain;
 mod file_reader;
 mod claude_api;
+mod notion;
 
 use tauri_plugin_sql::{Builder as SqlBuilder, Migration, MigrationKind};
 
@@ -25,6 +26,12 @@ pub fn run() {
       sql: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/db/v3_watch_targets.sql")),
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 4,
+      description: "add_idea_memos_table",
+      sql: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/db/v4_idea_memos.sql")),
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()
@@ -47,6 +54,11 @@ pub fn run() {
       keychain::delete_api_key,
       file_reader::read_dropped_file,
       claude_api::call_claude_api,
+      notion::save_notion_token,
+      notion::has_notion_token,
+      notion::delete_notion_token,
+      notion::test_notion_connection,
+      notion::send_to_notion,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

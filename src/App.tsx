@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { BackButton } from './components/BackButton';
+import { CommandPalette } from './components/CommandPalette';
 import { DisclaimerBanner } from './components/DisclaimerBanner';
 import { ResearchPage } from './engines/research/ResearchPage';
+import { IdeaMemoPage } from './engines/research/IdeaMemoPage';
 import { DeadlineManager } from './engines/manage/DeadlineManager';
 import { DefensiveDisclosures } from './engines/manage/DefensiveDisclosures';
 import { getSettingValue, listNearDeadlines, setSettingValue } from './engines/manage/db';
@@ -9,7 +11,7 @@ import { CompetitorWatcher } from './engines/watch/CompetitorWatcher';
 import { PatentMapGenerator } from './engines/watch/PatentMapGenerator';
 import { Home } from './home/Home';
 import type { Preset } from './home/presets';
-import { clusterColor } from './home/presets';
+import { clusterColor, presets } from './home/presets';
 import { Settings } from './settings/Settings';
 import './App.css';
 
@@ -22,6 +24,28 @@ function App() {
   const [view, setView] = useState<View>({ name: 'home' });
   const [nearDeadlineCount, setNearDeadlineCount] = useState(0);
   const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [pendingMemoId, setPendingMemoId] = useState<number | null>(null);
+
+  // Cmd+K / Ctrl+K でコマンドパレットを開く
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCommandPaletteOpen(open => !open);
+      }
+      if (e.key === 'Escape') setCommandPaletteOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  function handleCommandPaletteSelectMemo(id: number) {
+    setCommandPaletteOpen(false);
+    setPendingMemoId(id);
+    const p4 = presets.find(p => p.id === 4);
+    if (p4) setView({ name: 'preset', preset: p4 });
+  }
 
   // DBから閾値を初期ロード
   useEffect(() => {
@@ -97,7 +121,19 @@ function App() {
 
     const { preset } = view;
 
-    // Phase 1 + 3: Research engine (presets 1, 2, 3, 4, 5, 9)
+    // Preset 04: アイデアメモDB付き専用ページ
+    if (preset.id === 4) {
+      return (
+        <IdeaMemoPage
+          preset={preset}
+          onBack={handleBack}
+          initialMemoId={pendingMemoId}
+          onClearInitialMemoId={() => setPendingMemoId(null)}
+        />
+      );
+    }
+
+    // Phase 1 + 3: Research engine (presets 1, 2, 3, 5, 9)
     if (preset.engine === 'research' || preset.engine === 'research-vision') {
       return <ResearchPage preset={preset} onBack={handleBack} />;
     }
@@ -149,9 +185,19 @@ function App() {
         <button type="button" className="app__title" onClick={() => setView({ name: 'home' })}>
           知財プリツール
         </button>
-        <button type="button" className="app__settings-button" onClick={() => setView({ name: 'settings' })}>
-          設定
-        </button>
+        <div className="app__header-actions">
+          <button
+            type="button"
+            className="app__search-button"
+            onClick={() => setCommandPaletteOpen(true)}
+            title="アイデアメモを検索 (⌘K)"
+          >
+            🔍 <kbd>⌘K</kbd>
+          </button>
+          <button type="button" className="app__settings-button" onClick={() => setView({ name: 'settings' })}>
+            設定
+          </button>
+        </div>
       </header>
 
       <main className="app__main">
@@ -159,6 +205,12 @@ function App() {
       </main>
 
       {!isResearchPage && <DisclaimerBanner />}
+
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onSelectMemo={handleCommandPaletteSelectMemo}
+      />
     </div>
   );
 }
