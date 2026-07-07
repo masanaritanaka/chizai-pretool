@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { open } from '@tauri-apps/plugin-shell';
 import { deleteApiKey, getApiKey, saveApiKey } from '../lib/keychain';
 
 type Status = 'loading' | 'idle' | 'saving' | 'error';
@@ -8,12 +9,52 @@ interface Props {
   onThresholdChange: (days: number) => Promise<void>;
 }
 
+function ApiGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <h3 className="modal__title">APIキーの取得方法</h3>
+        <ol className="modal__steps">
+          <li className="modal__step">
+            <strong>Anthropic コンソールを開く</strong>
+            <p>下のボタンをクリックするとブラウザが開きます。アカウントを持っていない場合は無料で作成できます。</p>
+            <button
+              type="button"
+              className="modal__open-btn"
+              onClick={() => open('https://console.anthropic.com/settings/keys')}
+            >
+              console.anthropic.com を開く →
+            </button>
+          </li>
+          <li className="modal__step">
+            <strong>キーを作成する</strong>
+            <p>「API Keys」ページで「Create Key」をクリックし、名前を入力して作成します。</p>
+          </li>
+          <li className="modal__step">
+            <strong>キーをこのアプリに登録する</strong>
+            <p>表示されたキー（<code>sk-ant-...</code>）をコピーして、設定画面の入力欄に貼り付けて「保存」してください。キーはこの画面を閉じると二度と表示されないためご注意ください。</p>
+          </li>
+        </ol>
+        <p className="modal__note">
+          ※ APIの利用には従量課金が発生します。1回の調査で数円程度が目安です。
+        </p>
+        <div className="modal__actions">
+          <button type="button" className="modal__close-btn" onClick={onClose}>
+            閉じる
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function Settings({ thresholdDays, onThresholdChange }: Props) {
   const [keyInput, setKeyInput] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const [thresholdInput, setThresholdInput] = useState(String(thresholdDays));
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     getApiKey()
@@ -66,7 +107,16 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
 
       {/* ── Claude API キー ── */}
       <section className="settings__section">
-        <h3>Claude APIキー</h3>
+        <div className="settings__section-header">
+          <h3>Claude APIキー</h3>
+          <button
+            type="button"
+            className="api-guide-btn"
+            onClick={() => setShowGuide(true)}
+          >
+            取得方法を見る
+          </button>
+        </div>
         <p className="settings__hint">
           APIキーは OS のキーチェーン（macOS Keychain / Windows 資格情報マネージャー）に保存されます。
           アプリやリポジトリに平文で残ることはありません。
@@ -123,6 +173,8 @@ export function Settings({ thresholdDays, onThresholdChange }: Props) {
         </div>
         <p className="settings__status">現在の設定: {thresholdDays}日前</p>
       </section>
+
+      {showGuide && <ApiGuideModal onClose={() => setShowGuide(false)} />}
     </div>
   );
 }

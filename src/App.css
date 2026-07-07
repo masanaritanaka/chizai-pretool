@@ -479,6 +479,77 @@
 .settings__form--inline { align-items: center; }
 .settings__unit { color: var(--text-muted); font-size: 0.88rem; }
 
+.settings__section-header {
+  display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.25rem;
+}
+.settings__section-header h3 { margin: 0; }
+
+.api-guide-btn {
+  border: 1px solid var(--cluster-research);
+  border-radius: 5px; padding: 0.22rem 0.7rem;
+  background: none; color: var(--cluster-research);
+  font-size: 0.78rem; cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.api-guide-btn:hover { background: var(--cluster-research); color: #fff; }
+
+/* ════════════════════════════════════════════
+   Modal (API guide)
+   ════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex; align-items: center; justify-content: center;
+}
+
+.modal {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  padding: 1.5rem 1.75rem;
+  max-width: 480px; width: calc(100% - 2rem);
+  max-height: 80vh; overflow-y: auto;
+}
+
+.modal__title {
+  margin: 0 0 1.1rem; font-size: 1.05rem; font-weight: 700;
+}
+
+.modal__steps {
+  margin: 0 0 1rem; padding-left: 1.4rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+
+.modal__step { font-size: 0.9rem; line-height: 1.55; }
+.modal__step strong { display: block; margin-bottom: 0.25rem; font-size: 0.95rem; }
+.modal__step p { margin: 0 0 0.45rem; color: var(--text-muted); }
+.modal__step code {
+  font-family: monospace; font-size: 0.88em;
+  background: var(--bg); padding: 0.1em 0.35em; border-radius: 3px;
+}
+
+.modal__open-btn {
+  display: inline-block; padding: 0.4rem 0.9rem;
+  border: none; border-radius: 6px;
+  background: var(--cluster-research); color: #fff;
+  font-size: 0.85rem; font-weight: 600; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.modal__open-btn:hover { opacity: 0.85; }
+
+.modal__note {
+  margin: 0 0 1.1rem; font-size: 0.8rem; color: var(--text-muted);
+}
+
+.modal__actions { display: flex; justify-content: flex-end; }
+
+.modal__close-btn {
+  padding: 0.42rem 1.1rem;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--card); font-size: 0.88rem; cursor: pointer;
+  color: var(--text-muted); transition: border-color 0.15s;
+}
+.modal__close-btn:hover { border-color: #9CA3AF; color: var(--text); }
+
 /* ════════════════════════════════════════════
    Manage page (shared)
    ════════════════════════════════════════════ */

@@ -115,9 +115,16 @@ export async function callClaudeOcr(
   mediaType: ImageMediaType,
 ): Promise<string> {
   const system =
-    'You are a precise OCR engine. Extract all visible text from the image verbatim, preserving line breaks and structure as much as possible. Output only the extracted text with no explanation or commentary.';
+    'You are an expert document analyzer for patent and technical documents. Your task: ' +
+    '(1) Extract ALL visible text verbatim, preserving line breaks, lists, and table structure. ' +
+    '(2) If the image contains figures, drawings, diagrams, graphs, or photographs, append a section ' +
+    '"=== 図面・図表の説明 ===" and describe each one in detail in Japanese: shapes, arrows, labels, ' +
+    'reference numbers, and their apparent relationships or function. ' +
+    'Output only the extracted content — no preamble or commentary.';
   const userText =
-    '画像内に含まれるすべての文字をそのまま書き起こしてください。改行・リスト・表の構造を可能な限り保持し、説明なしに書き起こしテキストのみを出力してください。';
+    '画像内の文字をすべて書き起こしてください。また、図面・図表・グラフ・写真が含まれている場合は、' +
+    '「=== 図面・図表の説明 ===」という見出しを付けて、それぞれの内容を日本語で詳しく説明してください' +
+    '（形状・矢印・参照番号の関係、部品の配置など）。説明のみ出力してください。';
   return post(system, [
     { type: 'image', source: { type: 'base64', media_type: mediaType, data: imageBase64 } },
     { type: 'text', text: userText },

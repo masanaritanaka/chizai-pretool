@@ -9,7 +9,9 @@ fn entry() -> Result<Entry, String> {
 
 #[tauri::command]
 pub fn save_api_key(key: String) -> Result<(), String> {
-  entry()?.set_password(&key).map_err(|e| e.to_string())
+  entry()?.set_password(&key).map_err(|e| e.to_string())?;
+  crate::claude_api::clear_key_cache();
+  Ok(())
 }
 
 #[tauri::command]
@@ -23,10 +25,12 @@ pub fn get_api_key() -> Result<Option<String>, String> {
 
 #[tauri::command]
 pub fn delete_api_key() -> Result<(), String> {
-  match entry()?.delete_credential() {
+  let result = match entry()?.delete_credential() {
     Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
     Err(e) => Err(e.to_string()),
-  }
+  };
+  crate::claude_api::clear_key_cache();
+  result
 }
 
 #[cfg(test)]

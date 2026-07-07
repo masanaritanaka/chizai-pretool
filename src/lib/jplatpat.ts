@@ -9,16 +9,18 @@ export interface JplatpatLink {
   url: string;
 }
 
+// 実機確認済みURL (2026-07): /p0100=200, /t0100=200, /d0100=200
+// 実用新案専用パスは J-PlatPat に存在しないため特許検索 /p0100 を使用
 const SEARCH_URLS: Record<SearchDomain, string> = {
-  patent: 'https://www.j-platpat.inpit.go.jp/p0300',
-  'utility-model': 'https://www.j-platpat.inpit.go.jp/u0300',
-  trademark: 'https://www.j-platpat.inpit.go.jp/t0300',
-  design: 'https://www.j-platpat.inpit.go.jp/d0300',
+  patent: 'https://www.j-platpat.inpit.go.jp/p0100',
+  'utility-model': 'https://www.j-platpat.inpit.go.jp/p0100',
+  trademark: 'https://www.j-platpat.inpit.go.jp/t0100',
+  design: 'https://www.j-platpat.inpit.go.jp/d0100',
 };
 
 const DOMAIN_LABELS: Record<SearchDomain, string> = {
   patent: '特許テキスト検索',
-  'utility-model': '実用新案テキスト検索',
+  'utility-model': '特許・実用新案テキスト検索',
   trademark: '商標テキスト検索',
   design: '意匠テキスト検索',
 };
