@@ -107,8 +107,8 @@ async function post(systemPrompt: string, userContent: UserContent): Promise<str
     throw makeError('network', `エラー: ${raw.slice(0, 300)}`);
   }
 
-  const data = JSON.parse(responseText) as { content: { text: string }[] };
-  return data.content[0].text;
+  const data = JSON.parse(responseText) as { content: { type: string; text?: string }[] };
+  return (data.content.find(b => b.type === 'text')?.text) ?? '';
 }
 
 /** テキスト入力で Claude を呼び出す */

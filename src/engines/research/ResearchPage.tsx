@@ -14,7 +14,15 @@ import {
   buildSystemPrompt, buildUserMessage,
   buildVisionSystemPrompt, buildVisionTextMessage,
 } from './prompts';
-import { FIELD_LABELS, type PatentReadMemo, type StructuredMemo } from './types';
+import {
+  FIELD_LABELS,
+  type ContractRiskMemo,
+  type DesignSimilarityMemo,
+  type PatentReadMemo,
+  type PreFilingCheckMemo,
+  type StructuredMemo,
+  type TrademarkNamingMemo,
+} from './types';
 
 const LAW_DOMAIN_COLORS: Record<string, string> = {
   特許: '#2563EB', 商標: '#7C3AED', 意匠: '#DB2777',
@@ -31,41 +39,151 @@ const INPUT_PLACEHOLDER: Record<number, string> = {
 };
 
 function emptyMemo(): StructuredMemo {
-  return { technicalField: '', problem: '', solution: '', components: [], synonymsAndEnglish: [], riskAssessment: '', expertQuestions: [], searchKeywords: [] };
+  return { technicalField: '', problem: '', solution: '', components: [], synonymsAndEnglish: [], riskAssessment: '', expertQuestions: [], keyword_groups: [] };
 }
 
-// ── Preset 03 専用カード ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// 共通サブコンポーネント
+// ─────────────────────────────────────────────────────────────────────────────
+
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="patent-read-section">
+      <div className="patent-read-section__label">{label}</div>
+      <div className="patent-read-section__body">{children}</div>
+    </div>
+  );
+}
+
+function JplatpatSection({ color, links, copied, onCopy }: {
+  color: string;
+  links: ReturnType<typeof buildLinks>;
+  copied: string | null;
+  onCopy: (text: string, key: string) => void;
+}) {
+  if (links.length === 0) return null;
+  return (
+    <div className="research-card">
+      <h2 className="research-card__heading" style={{ color }}>特許庁サイトで検索する</h2>
+      <p className="jplatpat-hint">下のキーワードをコピーして、特許庁の無料検索サイト（J-PlatPat）に貼り付けてください。</p>
+      {links.map(link => (
+        <div key={link.domain} className="jplatpat-block">
+          <div className="jplatpat-block__label">{link.label}</div>
+          <div className="jplatpat-expression">
+            <code>{link.expression || '（キーワードなし）'}</code>
+            {link.expression && (
+              <button type="button" className="copy-btn" onClick={() => onCopy(link.expression, link.domain)}>
+                {copied === link.domain ? 'コピー済み ✓' : 'コピー'}
+              </button>
+            )}
+          </div>
+          <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
+            特許庁の無料サイトを開く →
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset 01 — 商標ネーミング危険度チェッカー
+// ─────────────────────────────────────────────────────────────────────────────
+
+function TrademarkNamingCard({ memo, color, copied, onCopy }: {
+  memo: TrademarkNamingMemo; color: string; copied: string | null; onCopy: (t: string, k: string) => void;
+}) {
+  const links = buildLinks(['商標'], memo.keyword_groups ?? []);
+  const riskClass = memo.riskLevel?.startsWith('高') ? 'risk-high'
+    : memo.riskLevel?.startsWith('中') ? 'risk-mid'
+    : 'risk-low';
+
+  return (
+    <>
+      <div className="research-card">
+        <h2 className="research-card__heading" style={{ color }}>商標ネーミング診断</h2>
+        <Section label="称呼・外観・観念の分析">{memo.phoneticsAnalysis}</Section>
+        <Section label="既登録商標との類似リスク">{memo.conflictRisk}</Section>
+        <div className={`trademark-risk-level trademark-risk-level--${riskClass}`}>
+          <span className="trademark-risk-level__icon">
+            {riskClass === 'risk-high' ? '🔴' : riskClass === 'risk-mid' ? '🟡' : '🟢'}
+          </span>
+          <span>{memo.riskLevel}</span>
+        </div>
+        {memo.preFilingActions && memo.preFilingActions.length > 0 && (
+          <Section label="出願前に確認すべきアクション">
+            <ol className="patent-read-list">
+              {memo.preFilingActions.map((a, i) => <li key={i}>{a}</li>)}
+            </ol>
+          </Section>
+        )}
+        <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
+      </div>
+      <JplatpatSection color={color} links={links} copied={copied} onCopy={onCopy} />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset 02 — 商標出願前チェックリスト
+// ─────────────────────────────────────────────────────────────────────────────
+
+function PreFilingCheckCard({ memo, color, copied, onCopy }: {
+  memo: PreFilingCheckMemo; color: string; copied: string | null; onCopy: (t: string, k: string) => void;
+}) {
+  const links = buildLinks(['商標'], memo.keyword_groups ?? []);
+  const [checked, setChecked] = useState<Record<number, boolean>>({});
+
+  return (
+    <>
+      <div className="research-card">
+        <h2 className="research-card__heading" style={{ color }}>商標出願前チェックリスト</h2>
+        <Section label="ニース国際分類（候補）">{memo.niceClasses}</Section>
+        <Section label="識別力の確認ポイント">{memo.distinctiveness}</Section>
+        {memo.checklist && memo.checklist.length > 0 && (
+          <div className="patent-read-section">
+            <div className="patent-read-section__label">出願前チェックリスト</div>
+            <ul className="prefiling-checklist">
+              {memo.checklist.map((item, i) => (
+                <li key={i} className={`prefiling-checklist__item${checked[i] ? ' prefiling-checklist__item--done' : ''}`}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={!!checked[i]}
+                      onChange={() => setChecked(prev => ({ ...prev, [i]: !prev[i] }))}
+                    />
+                    <span>{item}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <Section label="費用・期間の目安">{memo.costEstimate}</Section>
+        <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
+      </div>
+      <JplatpatSection color={color} links={links} copied={copied} onCopy={onCopy} />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset 03 — 特許文書をやさしく読み解く
+// ─────────────────────────────────────────────────────────────────────────────
 
 function PatentReadCard({ memo, color }: { memo: PatentReadMemo; color: string }) {
   return (
     <div className="research-card">
       <h2 className="research-card__heading" style={{ color }}>読み解き結果</h2>
-
-      <div className="patent-read-section">
-        <div className="patent-read-section__label">ひとことで言うと</div>
-        <p className="patent-read-section__body">{memo.summary}</p>
-      </div>
-
-      <div className="patent-read-section">
-        <div className="patent-read-section__label">どんな場面で使われる技術か</div>
-        <p className="patent-read-section__body">{memo.usageScenes}</p>
-      </div>
-
-      <div className="patent-read-section">
-        <div className="patent-read-section__label">従来との違い・新しさ</div>
-        <p className="patent-read-section__body">{memo.novelty}</p>
-      </div>
+      <Section label="ひとことで言うと">{memo.summary}</Section>
+      <Section label="どんな場面で使われる技術か">{memo.usageScenes}</Section>
+      <Section label="従来との違い・新しさ">{memo.novelty}</Section>
 
       {memo.termMap && memo.termMap.length > 0 && (
         <div className="patent-read-section">
           <div className="patent-read-section__label">本文の要点マップ</div>
           <table className="patent-term-table">
-            <thead>
-              <tr>
-                <th>原文の表現</th>
-                <th>わかりやすく言うと</th>
-              </tr>
-            </thead>
+            <thead><tr><th>原文の表現</th><th>わかりやすく言うと</th></tr></thead>
             <tbody>
               {memo.termMap.map((row, i) => (
                 <tr key={i}>
@@ -79,12 +197,11 @@ function PatentReadCard({ memo, color }: { memo: PatentReadMemo; color: string }
       )}
 
       {memo.businessQuestions && memo.businessQuestions.length > 0 && (
-        <div className="patent-read-section">
-          <div className="patent-read-section__label">経営判断のための3つの問い</div>
+        <Section label="経営判断のための3つの問い">
           <ol className="patent-read-list">
             {memo.businessQuestions.map((q, i) => <li key={i}>{q}</li>)}
           </ol>
-        </div>
+        </Section>
       )}
 
       {memo.whenToConsult && memo.whenToConsult.length > 0 && (
@@ -97,7 +214,84 @@ function PatentReadCard({ memo, color }: { memo: PatentReadMemo; color: string }
   );
 }
 
-// ── Props / State ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset 05 — 意匠・UI類似チェック
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DesignSimilarityCard({ memo, color, copied, onCopy }: {
+  memo: DesignSimilarityMemo; color: string; copied: string | null; onCopy: (t: string, k: string) => void;
+}) {
+  const links = buildLinks(['意匠'], memo.keyword_groups ?? []);
+  return (
+    <>
+      <div className="research-card">
+        <h2 className="research-card__heading" style={{ color }}>意匠類似チェック結果</h2>
+        <Section label="視覚的特徴の分解（形状・模様・色彩）">{memo.visualFeatures}</Section>
+        <Section label="類似判断の要部">{memo.keyElements}</Section>
+        <Section label="物品の類否">{memo.articleSimilarity}</Section>
+        {memo.priorDesignPoints && memo.priorDesignPoints.length > 0 && (
+          <Section label="先行意匠検索の着眼点">
+            <ol className="patent-read-list">
+              {memo.priorDesignPoints.map((p, i) => <li key={i}>{p}</li>)}
+            </ol>
+          </Section>
+        )}
+        <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
+      </div>
+      <JplatpatSection color={color} links={links} copied={copied} onCopy={onCopy} />
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Preset 09 — 契約・提案書の知財リスクチェッカー（J-PlatPat 検索式なし）
+// ─────────────────────────────────────────────────────────────────────────────
+
+function ContractRiskCard({ memo, color }: { memo: ContractRiskMemo; color: string }) {
+  return (
+    <div className="research-card">
+      <h2 className="research-card__heading" style={{ color }}>知財リスクチェック結果</h2>
+
+      {memo.clauses && memo.clauses.length > 0 && (
+        <div className="patent-read-section">
+          <div className="patent-read-section__label">知財関連条項の抽出</div>
+          <div className="contract-clauses">
+            {memo.clauses.map((c, i) => (
+              <div key={i} className="contract-clause">
+                <div className="contract-clause__header">
+                  <span className="contract-clause__name">{c.clause}</span>
+                  <span className="contract-clause__location">{c.location}</span>
+                </div>
+                <p className="contract-clause__risk">{c.risk}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {memo.negotiationOptions && memo.negotiationOptions.length > 0 && (
+        <Section label="修正交渉の選択肢">
+          <ol className="patent-read-list">
+            {memo.negotiationOptions.map((o, i) => <li key={i}>{o}</li>)}
+          </ol>
+        </Section>
+      )}
+
+      {memo.consultationItems && memo.consultationItems.length > 0 && (
+        <div className="memo-expert">
+          <strong>弁理士・弁護士に相談すべき事項</strong>
+          <ol>{memo.consultationItems.map((item, i) => <li key={i}>{item}</li>)}</ol>
+        </div>
+      )}
+
+      <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Props / State
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface Props {
   preset: Preset;
@@ -111,9 +305,15 @@ type SubmitState =
   | { status: 'calling' }
   | { status: 'error'; message: string; errorType: string }
   | { status: 'done'; memo: StructuredMemo; rawText?: string }
-  | { status: 'done_p03'; memo: PatentReadMemo };
+  | { status: 'done_p01'; memo: TrademarkNamingMemo }
+  | { status: 'done_p02'; memo: PreFilingCheckMemo }
+  | { status: 'done_p03'; memo: PatentReadMemo }
+  | { status: 'done_p05'; memo: DesignSimilarityMemo }
+  | { status: 'done_p09'; memo: ContractRiskMemo };
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
 
 export function ResearchPage({ preset, onBack }: Props) {
   const [textInput, setTextInput] = useState('');
@@ -131,7 +331,6 @@ export function ResearchPage({ preset, onBack }: Props) {
 
   // ── ファイル処理 ──────────────────────────────────────────────────────────────
 
-  // handleFile は毎レンダーで再生成されるため ref で最新版を保持（Tauri D&D クロージャの stale 防止）
   const handleFileRef = useRef<(file: File) => Promise<void>>(null as unknown as (file: File) => Promise<void>);
 
   async function handleFile(file: File) {
@@ -193,10 +392,7 @@ export function ResearchPage({ preset, onBack }: Props) {
     setState({ status: 'idle' });
   }
 
-  // handleFile ref を毎レンダー後に最新に更新
-  useEffect(() => {
-    handleFileRef.current = handleFile;
-  });
+  useEffect(() => { handleFileRef.current = handleFile; });
 
   // ── Tauri Finder D&D ──────────────────────────────────────────────────────────
 
@@ -227,7 +423,6 @@ export function ResearchPage({ preset, onBack }: Props) {
         }
       }
     }).then(fn => {
-      // cancelled が true なら既にアンマウント済み → 即解除
       if (cancelled) fn(); else unlisten = fn;
     });
 
@@ -235,7 +430,6 @@ export function ResearchPage({ preset, onBack }: Props) {
       cancelled = true;
       unlisten?.();
     };
-  // preset.id が変わった時だけ再登録
   }, [preset.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Web D&D ──────────────────────────────────────────────────────────────────
@@ -272,33 +466,33 @@ export function ResearchPage({ preset, onBack }: Props) {
         raw = await callClaude(buildSystemPrompt(preset), buildUserMessage(preset, textInput));
       }
 
-      // ── Preset 03 専用パーサー ──────────────────────────────────────────────
-      if (preset.id === 3) {
-        try {
-          const m = raw.match(/\{[\s\S]*\}/);
-          const parsed = JSON.parse(m ? m[0] : raw) as PatentReadMemo;
-          setState({ status: 'done_p03', memo: parsed });
-        } catch {
-          // JSON パース失敗 → 生テキストフォールバック
-          setState({ status: 'done', memo: emptyMemo(), rawText: raw });
+      const parseJson = <T,>(text: string): T => {
+        try { return JSON.parse(text) as T; }
+        catch {
+          const m = text.match(/\{[\s\S]*\}/);
+          if (m) return JSON.parse(m[0]) as T;
+          throw new Error('JSON not found');
         }
-        return;
-      }
+      };
 
-      // ── 標準パーサー (preset 03 以外) ────────────────────────────────────
-      let memo: StructuredMemo;
-      try {
-        memo = JSON.parse(raw) as StructuredMemo;
-      } catch {
-        const m = raw.match(/\{[\s\S]*\}/);
-        if (m) {
-          memo = JSON.parse(m[0]) as StructuredMemo;
-        } else {
+      if (preset.id === 1) {
+        setState({ status: 'done_p01', memo: parseJson<TrademarkNamingMemo>(raw) });
+      } else if (preset.id === 2) {
+        setState({ status: 'done_p02', memo: parseJson<PreFilingCheckMemo>(raw) });
+      } else if (preset.id === 3) {
+        setState({ status: 'done_p03', memo: parseJson<PatentReadMemo>(raw) });
+      } else if (preset.id === 5) {
+        setState({ status: 'done_p05', memo: parseJson<DesignSimilarityMemo>(raw) });
+      } else if (preset.id === 9) {
+        setState({ status: 'done_p09', memo: parseJson<ContractRiskMemo>(raw) });
+      } else {
+        // generic fallback (preset 07, 08, etc.)
+        try {
+          setState({ status: 'done', memo: parseJson<StructuredMemo>(raw) });
+        } catch {
           setState({ status: 'done', memo: emptyMemo(), rawText: raw });
-          return;
         }
       }
-      setState({ status: 'done', memo });
     } catch (err) {
       if (isClaudeError(err)) {
         setState({ status: 'error', message: err.message, errorType: err.errorType });
@@ -317,10 +511,10 @@ export function ResearchPage({ preset, onBack }: Props) {
   const isBusy = state.status === 'extracting' || state.status === 'ocr' || state.status === 'calling';
   const canSubmit = !isBusy && (textInput.trim().length > 0 || (isVisionPreset && !!visionImage));
 
-  // Preset 03 は searchKeywords を持たないため J-PlatPat リンクを表示しない
-  const jplatpatLinks =
+  // generic-fallback の J-PlatPat リンク
+  const genericJplatpatLinks =
     state.status === 'done' && !state.rawText
-      ? buildLinks(preset.lawDomains, state.memo.searchKeywords)
+      ? buildLinks(preset.lawDomains, state.memo.keyword_groups ?? [])
       : [];
 
   function busyLabel() {
@@ -436,9 +630,7 @@ export function ResearchPage({ preset, onBack }: Props) {
       </form>
 
       {/* ローディングバー */}
-      {isBusy && (
-        <LoadingBar label={loadingBarLabel()} color={color} />
-      )}
+      {isBusy && <LoadingBar label={loadingBarLabel()} color={color} />}
 
       {/* エラー */}
       {state.status === 'error' && (
@@ -469,7 +661,17 @@ export function ResearchPage({ preset, onBack }: Props) {
         </div>
       )}
 
-      {/* Preset 03 専用レンダラー */}
+      {/* ── Preset 01 ── */}
+      {state.status === 'done_p01' && (
+        <TrademarkNamingCard memo={state.memo} color={color} copied={copied} onCopy={copyToClipboard} />
+      )}
+
+      {/* ── Preset 02 ── */}
+      {state.status === 'done_p02' && (
+        <PreFilingCheckCard memo={state.memo} color={color} copied={copied} onCopy={copyToClipboard} />
+      )}
+
+      {/* ── Preset 03 ── */}
       {state.status === 'done_p03' && (
         <>
           <PatentReadCard memo={state.memo} color={color} />
@@ -477,7 +679,17 @@ export function ResearchPage({ preset, onBack }: Props) {
         </>
       )}
 
-      {/* 標準調査メモ (preset 03 以外) */}
+      {/* ── Preset 05 ── */}
+      {state.status === 'done_p05' && (
+        <DesignSimilarityCard memo={state.memo} color={color} copied={copied} onCopy={copyToClipboard} />
+      )}
+
+      {/* ── Preset 09 ── */}
+      {state.status === 'done_p09' && (
+        <ContractRiskCard memo={state.memo} color={color} />
+      )}
+
+      {/* ── Generic（preset 03 以外・fallback） ── */}
       {state.status === 'done' && !state.rawText && (
         <>
           <div className="research-card">
@@ -507,27 +719,8 @@ export function ResearchPage({ preset, onBack }: Props) {
             )}
           </div>
 
-          {jplatpatLinks.length > 0 && (
-            <div className="research-card">
-              <h2 className="research-card__heading" style={{ color }}>特許庁サイトで検索する</h2>
-              <p className="jplatpat-hint">下のキーワードをコピーして、特許庁の無料検索サイト（J-PlatPat）に貼り付けてください。</p>
-              {jplatpatLinks.map(link => (
-                <div key={link.domain} className="jplatpat-block">
-                  <div className="jplatpat-block__label">{link.label}</div>
-                  <div className="jplatpat-expression">
-                    <code>{link.expression || '（キーワードなし）'}</code>
-                    {link.expression && (
-                      <button type="button" className="copy-btn" onClick={() => copyToClipboard(link.expression, link.domain)}>
-                        {copied === link.domain ? 'コピー済み ✓' : 'コピー'}
-                      </button>
-                    )}
-                  </div>
-                  <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
-                    特許庁の無料サイトを開く →
-                  </button>
-                </div>
-              ))}
-            </div>
+          {genericJplatpatLinks.length > 0 && (
+            <JplatpatSection color={color} links={genericJplatpatLinks} copied={copied} onCopy={copyToClipboard} />
           )}
 
           <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>

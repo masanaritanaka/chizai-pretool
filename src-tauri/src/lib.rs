@@ -32,6 +32,12 @@ pub fn run() {
       sql: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/db/v4_idea_memos.sql")),
       kind: MigrationKind::Up,
     },
+    Migration {
+      version: 5,
+      description: "idea_memos_v2_law_domain_saved_views_fts",
+      sql: include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/../src/db/v5_idea_memos_v2.sql")),
+      kind: MigrationKind::Up,
+    },
   ];
 
   tauri::Builder::default()

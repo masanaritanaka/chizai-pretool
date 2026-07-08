@@ -134,15 +134,15 @@ fn memo_json_to_blocks(memo: &Value) -> Vec<Value> {
     blocks.extend(text_to_para_blocks(nf));
   }
 
-  if let Some(kws) = memo["keywords"].as_array() {
+  if let Some(kws) = memo["keyword_groups"].as_array() {
     if !kws.is_empty() {
       blocks.push(heading2("先行調査キーワード"));
       for kw in kws {
         let element = kw["element"].as_str().unwrap_or("");
-        let ja: Vec<&str> = kw["ja"].as_array()
+        let ja: Vec<&str> = kw["terms_ja"].as_array()
           .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
           .unwrap_or_default();
-        let en: Vec<&str> = kw["en"].as_array()
+        let en: Vec<&str> = kw["terms_en"].as_array()
           .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
           .unwrap_or_default();
         let ja_str = ja.join(" / ");

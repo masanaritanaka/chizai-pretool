@@ -9,8 +9,14 @@ export interface JplatpatLink {
   url: string;
 }
 
+/** 検索式キーワードグループ。構成要素ごとに日本語・英語の同義語を持つ二層構造。 */
+export interface KeywordGroup {
+  element: string;
+  terms_ja: string[];
+  terms_en: string[];
+}
+
 // 実機確認済みURL (2026-07): /p0100=200, /t0100=200, /d0100=200
-// 実用新案専用パスは J-PlatPat に存在しないため特許検索 /p0100 を使用
 const SEARCH_URLS: Record<SearchDomain, string> = {
   patent: 'https://www.j-platpat.inpit.go.jp/p0100',
   'utility-model': 'https://www.j-platpat.inpit.go.jp/p0100',
@@ -26,29 +32,54 @@ const DOMAIN_LABELS: Record<SearchDomain, string> = {
 };
 
 /**
- * キーワード配列から J-PlatPat 特許/実用新案テキスト検索式を生成する。
- * J-PlatPat 式入力検索の書式: (キーワード1) AND (キーワード2)
- * フィールド指定: /AB=要約, /TI=名称, /CL=クレーム  ※省略時は全文
+ * 特許/実用新案/意匠テキスト検索式を生成する。
+ * 構成要素グループ内は OR（同義語・上下位概念の代替）、グループ間は AND（異なる構成要素の共起）。
+ * 例: (ブレーキ OR 制動装置 OR brake) AND (機械学習 OR AI OR machine learning)
+ *
+ * 上限: グループ数 4、1グループあたり ja+en 合計 6 語。超過分は重要度優先で切り捨て。
  */
-export function buildPatentExpression(keywords: string[]): string {
-  if (keywords.length === 0) return '';
-  const terms = keywords.map((kw) => `(${kw.trim()})`);
-  return terms.join(' AND ');
+export function buildPatentExpressionFromGroups(groups: KeywordGroup[]): string {
+  if (!groups || groups.length === 0) return '';
+
+  const groupExprs: string[] = [];
+  for (const group of groups.slice(0, 4)) {
+    const terms = [
+      ...group.terms_ja.slice(0, 3).map(t => t.trim()).filter(Boolean),
+      ...group.terms_en.slice(0, 3).map(t => t.trim()).filter(Boolean),
+    ].slice(0, 6);
+
+    if (terms.length === 0) continue;
+    groupExprs.push(terms.length === 1 ? `(${terms[0]})` : `(${terms.join(' OR ')})`);
+  }
+
+  return groupExprs.join(' AND ');
 }
 
 /**
- * 商標テキスト検索式（商標の名称/称呼をORで並べる）
+ * 商標テキスト検索式を生成する。
+ * 称呼・外観・観念の各バリエーションを OR 連結する（商標類似判断は包括的に行う）。
+ * 例: (ナマエ OR NAME OR 名前 OR NAMAE)
  */
-export function buildTrademarkExpression(keywords: string[]): string {
-  if (keywords.length === 0) return '';
-  const terms = keywords.map((kw) => `(${kw.trim()})`);
-  return terms.join(' OR ');
+export function buildTrademarkExpressionFromGroups(groups: KeywordGroup[]): string {
+  if (!groups || groups.length === 0) return '';
+
+  const allTerms: string[] = [];
+  for (const group of groups.slice(0, 4)) {
+    allTerms.push(...group.terms_ja.slice(0, 3).map(t => t.trim()).filter(Boolean));
+    allTerms.push(...group.terms_en.slice(0, 2).map(t => t.trim()).filter(Boolean));
+    if (allTerms.length >= 8) break;
+  }
+
+  const terms = allTerms.slice(0, 8);
+  if (terms.length === 0) return '';
+  if (terms.length === 1) return `(${terms[0]})`;
+  return `(${terms.join(' OR ')})`;
 }
 
 /**
- * プリセットの法域から J-PlatPat リンクを生成する
+ * プリセットの法域から J-PlatPat リンクを生成する。
  */
-export function buildLinks(lawDomains: string[], keywords: string[]): JplatpatLink[] {
+export function buildLinks(lawDomains: string[], keywordGroups: KeywordGroup[]): JplatpatLink[] {
   const links: JplatpatLink[] = [];
 
   const domainMap: Record<string, SearchDomain> = {
@@ -67,15 +98,10 @@ export function buildLinks(lawDomains: string[], keywords: string[]): JplatpatLi
 
     const expression =
       sd === 'trademark'
-        ? buildTrademarkExpression(keywords)
-        : buildPatentExpression(keywords);
+        ? buildTrademarkExpressionFromGroups(keywordGroups)
+        : buildPatentExpressionFromGroups(keywordGroups);
 
-    links.push({
-      label: DOMAIN_LABELS[sd],
-      domain: sd,
-      expression,
-      url: SEARCH_URLS[sd],
-    });
+    links.push({ label: DOMAIN_LABELS[sd], domain: sd, expression, url: SEARCH_URLS[sd] });
   }
 
   return links;
