@@ -231,7 +231,7 @@ export async function getMemo(id: number): Promise<IdeaMemo | null> {
 }
 
 export interface ListMemosOptions {
-  query?: string;
+  freeText?: string;
   status?: string;
   domain?: string;
   tags?: string[];
@@ -272,7 +272,7 @@ export async function listMemos(options: ListMemosOptions | string = {}, legacyS
     params.push(opts.updatedAfter);
   }
 
-  const freeText = opts.freeText ?? (typeof options === 'string' ? undefined : undefined);
+  const freeText = opts.freeText;
 
   let idFilter = '';
   if (freeText) {

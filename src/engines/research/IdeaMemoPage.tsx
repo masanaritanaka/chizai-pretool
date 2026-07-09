@@ -17,7 +17,7 @@ import { clusterColor, type Preset } from '../../home/presets';
 import { buildSystemPrompt, buildUserMessage } from './prompts';
 import type { IdeaMemo04Output } from './types';
 import {
-  countMemos, deleteMemo, deleteView, duplicateMemo,
+  countMemos, deleteMemo, deleteView,
   getMemo, listMemos, listSavedViews, saveMemo, saveView, updateMemo,
   parseFieldSyntax,
   type IdeaMemo, type IdeaMemoListItem, type IdeaStatus, type SavedView,
@@ -711,7 +711,7 @@ export function IdeaMemoPage({ preset, onBack, initialMemoId, onClearInitialMemo
         </div>
       </div>
 
-      {isBusy && <LoadingBar />}
+      {isBusy && <LoadingBar label="AI分析中..." color={color} />}
 
       <div className="memo04-tabs">
         <button type="button" className={`memo04-tab${tab === 'analyze' ? ' memo04-tab--active' : ''}`} style={tab === 'analyze' ? { borderColor: color, color } : undefined} onClick={() => setTab('analyze')}>分析する</button>
