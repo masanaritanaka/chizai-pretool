@@ -92,12 +92,19 @@ async function post(systemPrompt: string, userContent: UserContent): Promise<str
       }
 
       let detail = `ステータス ${status}`;
+      let friendlyMsg: string | null = null;
       try {
         const parsed = JSON.parse(bodyText) as { error?: { message?: string; type?: string } };
-        if (parsed?.error?.message) detail += `: ${parsed.error.message}`;
+        if (parsed?.error?.message) {
+          detail += `: ${parsed.error.message}`;
+          if (parsed.error.message.includes('media_type')) {
+            friendlyMsg =
+              '画像の形式に対応していません。JPEG・PNG・GIF・WebP で保存し直してお試しください。';
+          }
+        }
         if (parsed?.error?.type) detail += ` (${parsed.error.type})`;
       } catch { /* ignore */ }
-      throw makeError('api_error', `API エラー — ${detail}`);
+      throw makeError('api_error', friendlyMsg ?? `API エラー — ${detail}`);
     }
 
     if (raw.startsWith('NETWORK:')) {

@@ -37,9 +37,16 @@ export type IngestResult = TextResult | ImageResult | ErrorResult;
 
 // ─── 定数 ────────────────────────────────────────────────────────────────────
 
-const IMAGE_TYPES = new Set<ImageMediaType>([
+export const VISION_ALLOWED_TYPES = new Set<ImageMediaType>([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
 ]);
+
+const IMAGE_TYPES = VISION_ALLOWED_TYPES;
+
+const MIME_ERROR_MSG = (displayType: string) =>
+  `この画像形式（${displayType}）には対応していません。` +
+  `JPEG・PNG・GIF・WebP のいずれかで保存し直してください。` +
+  `スクリーンショット（PNG）での取り込みが確実です。`;
 
 const EXT_MAP: Record<string, string> = {
   txt: 'text', md: 'text', csv: 'text', text: 'text',
@@ -109,16 +116,28 @@ async function extractXlsxText(file: File): Promise<string> {
   return parts.join('\n\n');
 }
 
-async function readImageAsBase64(file: File): Promise<ImageResult> {
-  return new Promise((resolve, reject) => {
+async function readImageAsBase64(file: File): Promise<ImageResult | ErrorResult> {
+  return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
       const [header, base64] = dataUrl.split(',');
-      const mediaType = (header.match(/:(.*?);/)?.[1] ?? 'image/jpeg') as ImageMediaType;
-      resolve({ type: 'image', base64, mediaType, previewUrl: dataUrl, sourceFile: file.name });
+      const detectedType = header.match(/:(.*?);/)?.[1] ?? '';
+      if (!IMAGE_TYPES.has(detectedType as ImageMediaType)) {
+        const display = detectedType || ('.' + (file.name.split('.').pop() ?? '?'));
+        resolve({ type: 'error', reason: MIME_ERROR_MSG(display), sourceFile: file.name });
+        return;
+      }
+      resolve({
+        type: 'image',
+        base64,
+        mediaType: detectedType as ImageMediaType,
+        previewUrl: dataUrl,
+        sourceFile: file.name,
+      });
     };
-    reader.onerror = () => reject(new Error('画像の読み込みに失敗しました。'));
+    reader.onerror = () =>
+      resolve({ type: 'error', reason: '画像の読み込みに失敗しました。', sourceFile: file.name });
     reader.readAsDataURL(file);
   });
 }
@@ -162,7 +181,11 @@ export async function ingestFile(file: File): Promise<IngestResult> {
       case 'image': {
         const mimeType = file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`;
         if (!IMAGE_TYPES.has(mimeType as ImageMediaType)) {
-          return { type: 'error', reason: `非対応の画像形式です（${mimeType}）。`, sourceFile: file.name };
+          return {
+            type: 'error',
+            reason: MIME_ERROR_MSG(file.type || ('.' + ext)),
+            sourceFile: file.name,
+          };
         }
         if (file.size > 5 * 1024 * 1024) {
           return {
