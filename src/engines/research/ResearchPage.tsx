@@ -226,9 +226,19 @@ function PatentReadCard({ memo, color }: { memo: PatentReadMemo; color: string }
   return (
     <div className="research-card">
       <h2 className="research-card__heading" style={{ color }}>読み解き結果</h2>
+
       <Section label="ひとことで言うと">{memo.summary}</Section>
       <Section label="どんな場面で使われる技術か">{memo.usageScenes}</Section>
-      <Section label="従来との違い・新しさ">{memo.novelty}</Section>
+
+      {/* claimScope: 読み手の第一関心「権利範囲はどこまでか」 */}
+      {memo.claimScope && (
+        <div className="patent-read-section">
+          <div className="patent-read-section__label patent-read-section__label--primary">
+            この特許が押さえている範囲（保護範囲）
+          </div>
+          <div className="patent-read-section__body patent-claim-scope">{memo.claimScope}</div>
+        </div>
+      )}
 
       {memo.termMap && memo.termMap.length > 0 && (
         <div className="patent-read-section">
@@ -247,20 +257,27 @@ function PatentReadCard({ memo, color }: { memo: PatentReadMemo; color: string }
         </div>
       )}
 
-      {memo.businessQuestions && memo.businessQuestions.length > 0 && (
-        <Section label="経営判断のための3つの問い">
-          <ol className="patent-read-list">
-            {memo.businessQuestions.map((q, i) => <li key={i}>{q}</li>)}
-          </ol>
-        </Section>
+      {/* whatItMeansForReaders: 自社活動との照合観点 */}
+      {memo.whatItMeansForReaders && (
+        <Section label="自社が気をつける点（観点の整理）">{memo.whatItMeansForReaders}</Section>
       )}
 
-      {memo.whenToConsult && memo.whenToConsult.length > 0 && (
-        <div className="memo-expert">
-          <strong>弁理士・専門家に相談すべきタイミング</strong>
-          <ol>{memo.whenToConsult.map((item, i) => <li key={i}>{item}</li>)}</ol>
+      {/* status: 権利状態の確認導線（断定しない） */}
+      {memo.status && (
+        <div className="patent-read-section patent-status-section">
+          <div className="patent-read-section__label">この特許の状態・確認方法</div>
+          <div className="patent-read-section__body">{memo.status}</div>
+          <div className="patent-status-notice">
+            📋 現在の権利状態（登録中か・存続中か）は、J-PlatPat の「経過情報」タブで確認できます
+          </div>
         </div>
       )}
+
+      {/* スキーマ外: 固定の相談喚起 */}
+      <div className="memo-expert patent-consult-prompt">
+        <strong>専門家への相談について</strong>
+        <p>権利範囲の最終解釈や侵害リスクの判断は弁理士にご相談ください。</p>
+      </div>
     </div>
   );
 }

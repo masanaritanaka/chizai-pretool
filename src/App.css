@@ -1880,3 +1880,24 @@
   flex-shrink: 0; padding: 0.15rem 0.5rem !important;
   font-size: 0.72rem !important;
 }
+
+/* ── preset 03: 保護範囲・状態セクション ────────────────────────────────── */
+.patent-read-section__label--primary {
+  font-weight: 700; color: #1D4ED8;
+}
+.patent-claim-scope {
+  background: #EFF6FF; border: 1.5px solid #BFDBFE;
+  border-radius: 7px; padding: 0.7rem 0.9rem;
+  font-size: 0.9rem; line-height: 1.7; white-space: pre-wrap;
+}
+.patent-status-section { margin-top: 1rem; }
+.patent-status-notice {
+  margin-top: 0.5rem; padding: 0.5rem 0.75rem;
+  background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 7px;
+  font-size: 0.83rem; color: #92400E; line-height: 1.5;
+}
+.patent-consult-prompt {
+  margin-top: 1.25rem; padding: 0.65rem 0.9rem;
+  border-top: 1px solid var(--border);
+}
+.patent-consult-prompt p { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-muted); }

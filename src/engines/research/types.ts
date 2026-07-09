@@ -43,14 +43,17 @@ export interface PreFilingCheckMemo {
   keyword_groups: KeywordGroup[];
 }
 
-// ── Preset 03: 特許文書をやさしく読み解く (変更しない) ────────────────────────
+// ── Preset 03: 特許文書をやさしく読み解く — 他社特許の読解に最適化 ──────────────
 export interface PatentReadMemo {
   summary: string;
   usageScenes: string;
-  novelty: string;
+  /** 保護範囲の平易な説明。必須構成要素の特定を含む */
+  claimScope: string;
   termMap: { term: string; plain: string }[];
-  businessQuestions: string[];
-  whenToConsult: string[];
+  /** 読み手が自社活動を照らし合わせる観点（判断は促さない） */
+  whatItMeansForReaders: string;
+  /** 文書から読み取れる出願日・公開日等の情報。経過情報確認の導線を含む */
+  status: string;
 }
 
 // ── Preset 04: アイデアの先行調査メモ ────────────────────────────────────────
