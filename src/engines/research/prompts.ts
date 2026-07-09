@@ -11,6 +11,9 @@ const KW_NOTE = `
 【keyword_groups の注意事項】
 - グループ数は最大4。新規性の焦点に直結する構成要素のみに絞る。全構成要素の機械的列挙禁止。
 - 1グループあたり terms_ja は最大3語、terms_en は最大3語（合計6語以内）。
+- terms_ja・terms_en は必ずスペースを含まない1単語のみ。複合概念は1語に要約すること。
+  例: "cutting board" は不可 → "board" または "manaita" 等の1語を選ぶ。
+  "machine learning" は不可 → "learning" または "machinelearning" ではなく "detection" 等の概念核心語。
 - J-PlatPat 検索文字数制限を考慮し、概念の核心を表す語のみを選ぶ。
 `.trim();
 

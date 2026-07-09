@@ -7,7 +7,7 @@ import { callClaude, callClaudeOcr, callClaudeVision, isClaudeError } from '../.
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { ACCEPT_ATTR, type ImageResult, type IngestResult, ingestFile, isAcceptedFile } from '../../lib/fileIngest';
-import { buildLinks, openJplatpat } from '../../lib/jplatpat';
+import { buildLinks, getGroupLines, openJplatpat, type KeywordGroup } from '../../lib/jplatpat';
 import { clusterColor } from '../../home/presets';
 import type { Preset } from '../../home/presets';
 import {
@@ -55,29 +55,80 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function JplatpatSection({ color, links, copied, onCopy }: {
+function JplatpatSection({ color, links, groups, copied, onCopy }: {
   color: string;
   links: ReturnType<typeof buildLinks>;
+  groups: KeywordGroup[];
   copied: string | null;
   onCopy: (text: string, key: string) => void;
 }) {
   if (links.length === 0) return null;
+  const groupLines = getGroupLines(groups);
+
   return (
     <div className="research-card">
       <h2 className="research-card__heading" style={{ color }}>特許庁サイトで検索する</h2>
-      <p className="jplatpat-hint">下のキーワードをコピーして、特許庁の無料検索サイト（J-PlatPat）に貼り付けてください。</p>
       {links.map(link => (
         <div key={link.domain} className="jplatpat-block">
           <div className="jplatpat-block__label">{link.label}</div>
-          <div className="jplatpat-expression">
-            <code>{link.expression || '（キーワードなし）'}</code>
-            {link.expression && (
-              <button type="button" className="copy-btn" onClick={() => onCopy(link.expression, link.domain)}>
-                {copied === link.domain ? 'コピー済み ✓' : 'コピー'}
-              </button>
-            )}
-          </div>
-          <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
+
+          {link.expressionType === 'formula' ? (
+            <>
+              <p className="jplatpat-hint">
+                論理式入力タブに貼り付けてください。選択入力を使う場合は下の表の各行を1つのキーワード欄に貼り付けます。
+              </p>
+              {/* モード1: 論理式をコピー */}
+              <div className="jplatpat-expression">
+                <code className="jplatpat-expression__code">{link.expression || '（キーワードなし）'}</code>
+                {link.expression && (
+                  <button type="button" className="copy-btn" onClick={() => onCopy(link.expression, `expr-${link.domain}`)}>
+                    {copied === `expr-${link.domain}` ? '論理式コピー済 ✓' : '論理式をコピー'}
+                  </button>
+                )}
+              </div>
+              {/* モード2: グループ別コピー（選択入力向け） */}
+              {groupLines.length > 0 && (
+                <div className="jplatpat-group-lines">
+                  <div className="jplatpat-group-lines__head">選択入力用（各行 = キーワード欄1つ）</div>
+                  {groupLines.map((g, i) => (
+                    <div key={i} className="jplatpat-group-line">
+                      <span className="jplatpat-group-line__element">{g.element}</span>
+                      <code className="jplatpat-group-line__terms">{g.terms}</code>
+                      <button
+                        type="button" className="copy-btn copy-btn--sm"
+                        onClick={() => onCopy(g.terms, `line-${link.domain}-${i}`)}
+                      >
+                        {copied === `line-${link.domain}-${i}` ? '✓' : 'コピー'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            /* 商標: 選択入力モード（フィールドコード未確認のため論理式不使用） */
+            <>
+              <p className="jplatpat-hint">
+                商標テキスト検索の「選択入力」タブを開き、キーワード欄に貼り付けてください。
+                <br />
+                <span className="jplatpat-hint--sub">（商標検索のフィールドコードは仕様未確認のため、論理式入力には対応していません）</span>
+              </p>
+              <div className="jplatpat-expression">
+                <code className="jplatpat-expression__code">{link.expression || '（キーワードなし）'}</code>
+                {link.expression && (
+                  <button type="button" className="copy-btn" onClick={() => onCopy(link.expression, `expr-${link.domain}`)}>
+                    {copied === `expr-${link.domain}` ? 'コピー済 ✓' : 'キーワードをコピー'}
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+
+          <button
+            type="button" className="jplatpat-open-btn"
+            style={{ '--cluster-color': color } as React.CSSProperties}
+            onClick={() => openJplatpat(link.url)}
+          >
             特許庁の無料サイトを開く →
           </button>
         </div>
@@ -119,7 +170,7 @@ function TrademarkNamingCard({ memo, color, copied, onCopy }: {
         )}
         <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
       </div>
-      <JplatpatSection color={color} links={links} copied={copied} onCopy={onCopy} />
+      <JplatpatSection color={color} links={links} groups={memo.keyword_groups ?? []} copied={copied} onCopy={onCopy} />
     </>
   );
 }
@@ -162,7 +213,7 @@ function PreFilingCheckCard({ memo, color, copied, onCopy }: {
         <Section label="費用・期間の目安">{memo.costEstimate}</Section>
         <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
       </div>
-      <JplatpatSection color={color} links={links} copied={copied} onCopy={onCopy} />
+      <JplatpatSection color={color} links={links} groups={memo.keyword_groups ?? []} copied={copied} onCopy={onCopy} />
     </>
   );
 }
@@ -238,7 +289,7 @@ function DesignSimilarityCard({ memo, color, copied, onCopy }: {
         )}
         <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>
       </div>
-      <JplatpatSection color={color} links={links} copied={copied} onCopy={onCopy} />
+      <JplatpatSection color={color} links={links} groups={memo.keyword_groups ?? []} copied={copied} onCopy={onCopy} />
     </>
   );
 }
@@ -720,7 +771,7 @@ export function ResearchPage({ preset, onBack }: Props) {
           </div>
 
           {genericJplatpatLinks.length > 0 && (
-            <JplatpatSection color={color} links={genericJplatpatLinks} copied={copied} onCopy={copyToClipboard} />
+            <JplatpatSection color={color} links={genericJplatpatLinks} groups={state.memo.keyword_groups ?? []} copied={copied} onCopy={copyToClipboard} />
           )}
 
           <div className="research-disclaimer">{DISCLAIMER_TEXT}</div>

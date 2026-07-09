@@ -1844,3 +1844,39 @@
 .memo04-detail__domain-badge {
   font-size: 0.78rem; color: #2563EB; margin: 0.4rem 0 0.1rem;
 }
+
+/* ── v0.6.1: J-PlatPat 二段構えコピー UI ────────────────────────────────── */
+.jplatpat-expression__code {
+  display: block; word-break: break-all; font-size: 0.82rem;
+  background: var(--bg); padding: 0.4rem 0.6rem;
+  border-radius: 5px; border: 1px solid var(--border);
+  margin-bottom: 0.4rem; line-height: 1.5;
+}
+.jplatpat-hint--sub {
+  font-size: 0.75rem; color: var(--text-muted);
+}
+.jplatpat-group-lines {
+  margin: 0.6rem 0; border: 1px solid var(--border); border-radius: 7px; overflow: hidden;
+}
+.jplatpat-group-lines__head {
+  font-size: 0.72rem; font-weight: 600; color: var(--text-muted);
+  padding: 0.3rem 0.65rem; background: var(--bg-hover, #F3F4F6);
+  border-bottom: 1px solid var(--border);
+}
+.jplatpat-group-line {
+  display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+.jplatpat-group-line:last-child { border-bottom: none; }
+.jplatpat-group-line__element {
+  flex-shrink: 0; min-width: 5rem; font-size: 0.78rem;
+  color: var(--text-muted); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis;
+}
+.jplatpat-group-line__terms {
+  flex: 1; font-size: 0.8rem; word-break: break-all;
+}
+.copy-btn--sm {
+  flex-shrink: 0; padding: 0.15rem 0.5rem !important;
+  font-size: 0.72rem !important;
+}

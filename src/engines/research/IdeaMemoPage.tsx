@@ -9,7 +9,7 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { ImageMediaType } from '../../lib/claude';
 import { callClaude, callClaudeOcr, isClaudeError } from '../../lib/claude';
 import { ACCEPT_ATTR, ingestFile, isAcceptedFile, type IngestResult } from '../../lib/fileIngest';
-import { buildLinks, openJplatpat } from '../../lib/jplatpat';
+import { buildLinks, getGroupLines, openJplatpat } from '../../lib/jplatpat';
 import { open } from '@tauri-apps/plugin-shell';
 import { sendToNotion } from '../../lib/notion';
 import { getSettingValue } from '../manage/db';
@@ -91,23 +91,45 @@ function IdeaMemoResultCard({
 
       {jplatpatLinks.length > 0 && (
         <div style={{ marginTop: '1.25rem' }}>
-          <p className="jplatpat-hint">先行技術検索 — J-PlatPat で確認する</p>
-          {jplatpatLinks.map(link => (
-            <div key={link.domain} className="jplatpat-block">
-              <div className="jplatpat-block__label">{link.label}</div>
-              <div className="jplatpat-expression">
-                <code>{link.expression || '（キーワード抽出中）'}</code>
-                {link.expression && (
-                  <button type="button" className="copy-btn" onClick={() => onCopy(link.expression, `jpp-${link.domain}`)}>
-                    {copied === `jpp-${link.domain}` ? 'コピー済 ✓' : 'コピー'}
-                  </button>
+          {jplatpatLinks.map(link => {
+            const groupLines = getGroupLines(memo.keyword_groups ?? []);
+            return (
+              <div key={link.domain} className="jplatpat-block">
+                <div className="jplatpat-block__label">{link.label}</div>
+                <p className="jplatpat-hint">
+                  論理式入力タブに貼り付けてください。選択入力を使う場合は下の各行を1つのキーワード欄に貼り付けます。
+                </p>
+                <div className="jplatpat-expression">
+                  <code className="jplatpat-expression__code">{link.expression || '（キーワード抽出中）'}</code>
+                  {link.expression && (
+                    <button type="button" className="copy-btn" onClick={() => onCopy(link.expression, `expr-${link.domain}`)}>
+                      {copied === `expr-${link.domain}` ? '論理式コピー済 ✓' : '論理式をコピー'}
+                    </button>
+                  )}
+                </div>
+                {groupLines.length > 0 && (
+                  <div className="jplatpat-group-lines">
+                    <div className="jplatpat-group-lines__head">選択入力用（各行 = キーワード欄1つ）</div>
+                    {groupLines.map((g, i) => (
+                      <div key={i} className="jplatpat-group-line">
+                        <span className="jplatpat-group-line__element">{g.element}</span>
+                        <code className="jplatpat-group-line__terms">{g.terms}</code>
+                        <button
+                          type="button" className="copy-btn copy-btn--sm"
+                          onClick={() => onCopy(g.terms, `line-${link.domain}-${i}`)}
+                        >
+                          {copied === `line-${link.domain}-${i}` ? '✓' : 'コピー'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
+                <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
+                  J-PlatPat で検索を開く →
+                </button>
               </div>
-              <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
-                J-PlatPat で検索を開く →
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -279,23 +301,45 @@ function IdeaMemoDetailView({
 
       {jplatpatLinks.length > 0 && (
         <div className="research-card" style={{ marginTop: '0.75rem' }}>
-          <p className="jplatpat-hint">先行技術検索 — J-PlatPat で確認する</p>
-          {jplatpatLinks.map(link => (
-            <div key={link.domain} className="jplatpat-block">
-              <div className="jplatpat-block__label">{link.label}</div>
-              <div className="jplatpat-expression">
-                <code>{link.expression}</code>
-                {link.expression && (
-                  <button type="button" className="copy-btn" onClick={() => handleCopy(link.expression, link.domain)}>
-                    {copyKey === link.domain ? 'コピー済 ✓' : 'コピー'}
-                  </button>
+          {jplatpatLinks.map(link => {
+            const groupLines = getGroupLines(memoOutput?.keyword_groups ?? []);
+            return (
+              <div key={link.domain} className="jplatpat-block">
+                <div className="jplatpat-block__label">{link.label}</div>
+                <p className="jplatpat-hint">
+                  論理式入力タブに貼り付けてください。選択入力を使う場合は下の各行を1つのキーワード欄に貼り付けます。
+                </p>
+                <div className="jplatpat-expression">
+                  <code className="jplatpat-expression__code">{link.expression}</code>
+                  {link.expression && (
+                    <button type="button" className="copy-btn" onClick={() => handleCopy(link.expression, `expr-${link.domain}`)}>
+                      {copyKey === `expr-${link.domain}` ? '論理式コピー済 ✓' : '論理式をコピー'}
+                    </button>
+                  )}
+                </div>
+                {groupLines.length > 0 && (
+                  <div className="jplatpat-group-lines">
+                    <div className="jplatpat-group-lines__head">選択入力用（各行 = キーワード欄1つ）</div>
+                    {groupLines.map((g, i) => (
+                      <div key={i} className="jplatpat-group-line">
+                        <span className="jplatpat-group-line__element">{g.element}</span>
+                        <code className="jplatpat-group-line__terms">{g.terms}</code>
+                        <button
+                          type="button" className="copy-btn copy-btn--sm"
+                          onClick={() => handleCopy(g.terms, `line-${link.domain}-${i}`)}
+                        >
+                          {copyKey === `line-${link.domain}-${i}` ? '✓' : 'コピー'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
+                <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
+                  J-PlatPat で検索を開く →
+                </button>
               </div>
-              <button type="button" className="jplatpat-open-btn" style={{ '--cluster-color': color } as React.CSSProperties} onClick={() => openJplatpat(link.url)}>
-                J-PlatPat で検索を開く →
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
