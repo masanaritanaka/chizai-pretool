@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "chizai-pretool",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "identifier": "com.chizaipretool.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -20,7 +20,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost data: blob:; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
@@ -33,8 +33,8 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "macOS": {
+      "signingIdentity": "-"
     }
   }
 }

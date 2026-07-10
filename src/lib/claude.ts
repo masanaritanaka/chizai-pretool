@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
 
+const MODEL = 'claude-sonnet-4-6';
+
 export type ClaudeErrorType =
   | 'no_key'
   | 'network'
@@ -39,7 +41,7 @@ interface ContentBlock {
 async function post(systemPrompt: string, userContent: UserContent): Promise<string> {
   // APIキーは Rust コマンド内で OS キーチェーンから直接取得。JS には渡さない。
   const body = JSON.stringify({
-    model: 'claude-sonnet-4-6',
+    model: MODEL,
     max_tokens: 4096,
     system: systemPrompt,
     messages: [{ role: 'user', content: userContent }],
@@ -114,7 +116,16 @@ async function post(systemPrompt: string, userContent: UserContent): Promise<str
     throw makeError('network', `エラー: ${raw.slice(0, 300)}`);
   }
 
-  const data = JSON.parse(responseText) as { content: { type: string; text?: string }[] };
+  const data = JSON.parse(responseText) as {
+    content: { type: string; text?: string }[];
+    stop_reason?: string;
+  };
+  if (data.stop_reason === 'max_tokens') {
+    throw makeError(
+      'api_error',
+      '出力が長すぎて途中で切れました。入力を分割するか要素を減らして再試行してください。',
+    );
+  }
   return (data.content.find(b => b.type === 'text')?.text) ?? '';
 }
 

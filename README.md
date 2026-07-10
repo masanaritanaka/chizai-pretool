@@ -1,6 +1,6 @@
 # 知財プリツール（chizai-pretool）
 
-**最新版: v0.6.3** — [Releases](../../releases) からインストーラをダウンロードできます（Windows `.msi`/`.exe` / macOS `.dmg` Universal）
+**最新版: v0.6.4** — [Releases](../../releases) からインストーラをダウンロードできます（Windows `.msi`/`.exe` / macOS `.dmg` Universal）
 
 特許・実用新案・意匠・商標の初期調査と構造化を支援するデスクトップアプリです。弁理士・知財部へ相談する前の「前処理」を、非専門家でも自分で進められるようにします。
 
@@ -119,8 +119,8 @@ npm run tauri build
 `v*` 形式のタグを push すると、GitHub Actions（[.github/workflows/release.yml](./.github/workflows/release.yml)）が Windows / macOS のインストーラをビルドし、GitHub Release として自動公開します。
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.6.4
+git push origin main v0.6.4
 ```
 
 ## セキュリティに関する注記
