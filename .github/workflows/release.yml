@@ -49,7 +49,7 @@ jobs:
             chizai-pretool ${{ github.ref_name }}
 
             Windows (.msi / .exe) と macOS (.dmg, Universal) のインストーラはこのリリースの Assets からダウンロードできます。
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
 

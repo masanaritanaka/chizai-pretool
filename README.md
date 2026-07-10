@@ -1,8 +1,10 @@
 # 知財プリツール（chizai-pretool）
 
+**最新版: v0.6.3** — [Releases](../../releases) からインストーラをダウンロードできます（Windows `.msi`/`.exe` / macOS `.dmg` Universal）
+
 特許・実用新案・意匠・商標の初期調査と構造化を支援するデスクトップアプリです。弁理士・知財部へ相談する前の「前処理」を、非専門家でも自分で進められるようにします。
 
-> 本ツールは登録可能性・権利侵害の有無を判定・保証するものではありません。初期調査と論点整理の補助を目的としています。最終判断は弁理士・知財部にご相談ください。
+> **免責**: 本ツールは登録可能性・権利侵害の有無を判定・保証するものではありません。初期調査と論点整理の補助を目的としています。最終判断は弁理士・知財部にご相談ください。
 
 開発方針・仕様の全体像は [CLAUDE.md](./CLAUDE.md) を参照してください。
 
@@ -45,7 +47,12 @@
    - キーは OS のキーチェーン（macOS Keychain / Windows 資格情報マネージャー）に保存され、アプリやリポジトリに平文で残ることはありません。
 4. Home 画面の「調べる／監視する／管理する」のプリセットから使いたい機能を選びます。
 
-macOS で「開発元を検証できません」と表示される場合は、Finder でアプリを右クリック →「開く」を選択してください（未署名ビルドのため）。
+macOS で「開発元を検証できません」と表示される場合は、Finder でアプリを右クリック →「開く」を選択してください（未署名ビルドのため、Apple の署名・公証は行っていません）。
+
+### preset 05（意匠・UI類似チェック）の画像形式
+
+対応形式: **JPEG / PNG / GIF / WebP** のみ。  
+非対応: AVIF / HEIC / TIFF 等は取り込み時にエラーになります。Canva や他の Web サービスからドラッグした画像が AVIF 形式で保存されている場合、**PNG 形式でスクリーンショットを撮り直す**のが最も確実な回避策です。
 
 ## 開発者向けセットアップ
 
@@ -109,7 +116,7 @@ npm run tauri build
 
 ## リリース
 
-`v*` 形式のタグを push すると、GitHub Actions（[.github/workflows/release.yml](./.github/workflows/release.yml)）が Windows / macOS のインストーラをビルドし、ドラフトの GitHub Release に添付します。
+`v*` 形式のタグを push すると、GitHub Actions（[.github/workflows/release.yml](./.github/workflows/release.yml)）が Windows / macOS のインストーラをビルドし、GitHub Release として自動公開します。
 
 ```bash
 git tag v0.1.0
